@@ -15,6 +15,7 @@
 
 import { Platform } from "react-native";
 import { fetch as expoFetch } from "expo/fetch";
+import { File as ExpoFile } from "expo-file-system";
 
 export type LocalFile = {
   uri: string; // asset.uri from expo-image-picker / expo-document-picker / expo-audio
@@ -42,9 +43,9 @@ export async function toFormDataPart(file: LocalFile): Promise<Blob> {
     const type = file.mimeType || blob.type;
     return type && type !== blob.type ? new Blob([blob], { type }) : blob;
   }
-  // Native: read the local file through expo/fetch (never the RN fetch) and append the Blob.
-  const blob = await (await expoFetch(file.uri)).blob();
-  return file.mimeType && file.mimeType !== blob.type ? new Blob([blob], { type: file.mimeType }) : blob;
+  const nativeFile = new ExpoFile(file.uri);
+  const bytes = await nativeFile.arrayBuffer();
+  return new Blob([bytes], { type: file.mimeType || "image/jpeg" });
 }
 
 export async function uploadForm(url: string, opts: UploadOptions): Promise<Response> {
