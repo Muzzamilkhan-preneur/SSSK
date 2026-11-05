@@ -9,6 +9,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import Animated, { FadeIn } from "react-native-reanimated";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 
 import { api } from "@/src/api";
 import { CheckProgress } from "@/src/components/CheckProgress";
@@ -90,7 +91,13 @@ export default function Register() {
 
   const capture = async () => {
     const pic = await camRef.current?.takePictureAsync({ quality: 0.4 });
-    if (pic?.uri) runCheck({ uri: pic.uri, name: "selfie.jpg", mimeType: "image/jpeg" });
+    if (pic?.uri) {
+      const compressed = await ImageManipulator.manipulateAsync(pic.uri, [{ resize: { width: 900 } }], {
+        compress: 0.7,
+        format: ImageManipulator.SaveFormat.JPEG,
+      });
+      runCheck({ uri: compressed.uri, name: "selfie.jpg", mimeType: "image/jpeg" });
+    }
   };
 
   const upload = async () => {
