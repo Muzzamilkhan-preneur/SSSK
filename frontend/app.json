@@ -1,0 +1,77 @@
+{
+  "expo": {
+    "name": "Saaf Sarak",
+    "slug": "frontend",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "frontend",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.saafkarachi.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Take selfies and photograph potholes",
+        "NSPhotoLibraryUsageDescription": "Attach photos of road damage to reports",
+        "NSLocationWhenInUseUsageDescription": "Pin the pothole location on the map"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      },
+      "package": "com.saafkarachi.app",
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-image.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#000000"
+        }
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-status-bar",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Pin the pothole location on the map"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Photograph potholes to report road damage",
+          "photosPermission": "Attach photos of road damage to reports"
+        }
+      ],
+      "@react-native-vector-icons/ionicons",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Take a selfie to verify your account"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
