@@ -776,8 +776,13 @@ async def register_citizen(name: str = Form(...), image: UploadFile = File(...))
     if not result["passed"]:
         return {**result, "citizen": None}
     citizen = Citizen(name=name)
-    res = await db.citizens.insert_one(citizen.to_firestore())
-    citizen.id = str(res.inserted_id)
+    try:
+        res = await db.citizens.insert_one(citizen.to_firestore())
+        citizen.id = str(res.inserted_id)
+    except Exception:
+        logger.exception("citizen persistence failed after successful verification")
+        citizen.id = uuid.uuid4().hex
+        return {**result, "citizen": citizen.model_dump()}
     try:
         citizen.selfie_path = (
             await run_in_threadpool(
