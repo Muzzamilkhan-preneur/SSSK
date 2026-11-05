@@ -329,7 +329,11 @@ def check_selfie(data: bytes, mime: str) -> dict:
         checks.append(
             {"key": key, "label": label, "probability": round(p, 3), "passed": passed}
         )
-        if not passed and reason is None:
+        if (
+            key in {"has_face", "single_person", "real_capture"}
+            and not passed
+            and reason is None
+        ):
             reason = fail_reason
     return {"passed": reason is None, "reason": reason, "checks": checks}
 
