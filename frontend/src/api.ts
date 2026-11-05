@@ -42,6 +42,7 @@ async function upload<T>(path: string, options: Parameters<typeof uploadForm>[1]
     return await request();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    console.error("[api upload]", { path, message, baseUrl: BASE_URL });
     const transient = /failed to fetch|network request failed|network error|load failed|Request failed \(503\)|AI check unavailable/i.test(message);
     if (!transient) throw error;
     await new Promise((resolve) => setTimeout(resolve, 800));

@@ -73,6 +73,7 @@ export default function Register() {
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
+      console.error("[selfie verification]", e);
       setError(message || "AI verification failed for an unknown reason. Try again.");
       setPhase("result");
     }
