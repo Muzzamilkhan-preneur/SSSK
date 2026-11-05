@@ -24,8 +24,12 @@ export async function clearSession(): Promise<boolean> {
   return storage.removeItem(KEY);
 }
 
-export function homeFor(session: Session): "/citizen/reports" | "/mayor/queue" | "/contractor/active" {
-  return session.role === "citizen" ? "/citizen/reports" : session.role === "mayor" ? "/mayor/queue" : "/contractor/active";
+export function homeFor(session: Session): "/citizen/tabs/reports" | "/mayor/tabs/queue" | "/contractor/tabs/active" {
+  return session.role === "citizen"
+    ? "/citizen/tabs/reports"
+    : session.role === "mayor"
+      ? "/mayor/tabs/queue"
+      : "/contractor/tabs/active";
 }
 
 export function useSession(): Session | null {
