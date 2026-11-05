@@ -88,14 +88,14 @@ export default function Register() {
   };
 
   const capture = async () => {
-    const pic = await camRef.current?.takePictureAsync({ quality: 0.6 });
+    const pic = await camRef.current?.takePictureAsync({ quality: 0.4 });
     if (pic?.uri) runCheck({ uri: pic.uri, name: "selfie.jpg", mimeType: "image/jpeg" });
   };
 
   const upload = async () => {
     const perm = await ensureMediaPermission("gallery");
     if (perm !== "granted") return;
-    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.6 });
+    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.4 });
     const a = r.canceled ? null : r.assets?.[0];
     if (a) runCheck({ uri: a.uri, name: a.fileName ?? "selfie.jpg", mimeType: a.mimeType ?? "image/jpeg" });
   };
