@@ -908,14 +908,20 @@ async def create_report(
         await save_report(existing)
         return {"merged": True, "report": existing.model_dump()}
 
-    path = (
-        await run_in_threadpool(
-            put_object,
-            f"{APP_NAME}/uploads/{citizen_id}/{uuid.uuid4()}.{_ext(image.filename)}",
-            data,
-            mime,
-        )
-    )["path"]
+    try:
+        path = (
+            await run_in_threadpool(
+                put_object,
+                f"{APP_NAME}/uploads/{citizen_id}/{uuid.uuid4()}.{_ext(image.filename)}",
+                data,
+                mime,
+            )
+        )["path"]
+    except Exception as exc:
+        logger.exception("report image archival failed")
+        raise HTTPException(
+            status_code=503, detail="Report image storage is temporarily unavailable"
+        ) from exc
     address = await run_in_threadpool(reverse_geocode, lat, lng)
     report = Report(
         citizen_id=citizen_id,
@@ -954,7 +960,13 @@ async def create_report(
         created_at=now,
         updated_at=now,
     )
-    res = await db.reports.insert_one(report.to_firestore())
+    try:
+        res = await db.reports.insert_one(report.to_firestore())
+    except Exception as exc:
+        logger.exception("report persistence failed")
+        raise HTTPException(
+            status_code=503, detail="Report database is temporarily unavailable"
+        ) from exc
     report.id = str(res.inserted_id)
     return {"merged": False, "report": report.model_dump()}
 
