@@ -72,7 +72,8 @@ export default function Register() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       }
     } catch (e) {
-      setError((e as Error).message || "AI check unavailable, try again");
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message || "AI verification failed for an unknown reason. Try again.");
       setPhase("result");
     }
   };

@@ -42,7 +42,7 @@ async function upload<T>(path: string, options: Parameters<typeof uploadForm>[1]
     return await request();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const transient = /failed to fetch|network error|load failed|Request failed \(503\)/i.test(message);
+    const transient = /failed to fetch|network request failed|network error|load failed|Request failed \(503\)/i.test(message);
     if (!transient) throw error;
     await new Promise((resolve) => setTimeout(resolve, 800));
     try {
@@ -51,7 +51,7 @@ async function upload<T>(path: string, options: Parameters<typeof uploadForm>[1]
       if (/Request failed \(503\)/i.test(message)) {
         throw new Error("AI verification is temporarily unavailable. Please try again in a moment.");
       }
-      throw new Error("The service could not be reached. Check your connection and try again.");
+      throw new Error("The service could not be reached from this phone. Check Wi-Fi/mobile data and try again.");
     }
   }
 }
