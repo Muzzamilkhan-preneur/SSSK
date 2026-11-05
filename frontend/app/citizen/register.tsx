@@ -2,8 +2,8 @@ import * as Haptics from "expo-haptics";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useRef, useState } from "react";
-import { Linking, Platform, Pressable, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { AppState, Linking, Platform, Pressable, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import Animated, { FadeIn } from "react-native-reanimated";
@@ -44,6 +44,16 @@ export default function Register() {
   const [error, setError] = useState<string | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", async (state) => {
+      if (state === "active") {
+        const current = await requestPermission();
+        if (current.granted) setPhase((currentPhase) => currentPhase === "camera" ? "camera" : currentPhase);
+      }
+    });
+    return () => subscription.remove();
+  }, [requestPermission]);
+
   const runCheck = async (file: LocalFile) => {
     setPhoto(file);
     setResult(null);
@@ -68,12 +78,10 @@ export default function Register() {
   };
 
   const openCamera = async () => {
-    if (!permission?.granted) {
-      const res = permission?.canAskAgain === false ? permission : await requestPermission();
-      if (!res?.granted) {
-        setPhase("camera");
-        return;
-      }
+    const current = await requestPermission();
+    if (!current.granted) {
+      setPhase("camera");
+      return;
     }
     setPhase("camera");
   };
