@@ -25,7 +25,7 @@ export default function MayorQueue() {
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
   const [filter, setFilter] = useState("review");
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({ queryKey: qk.reports("mayor"), queryFn: () => api.reports() });
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({ queryKey: qk.reports("mayor"), queryFn: () => api.reports() });
   const { data: stats } = useQuery({ queryKey: qk.stats, queryFn: api.stats });
 
   // Most dangerous and most-reported first.
@@ -69,7 +69,16 @@ export default function MayorQueue() {
           data={filtered}
           keyExtractor={(r) => r.id}
           renderItem={({ item, index }) => <ReportCard report={item} onPress={() => router.push(`/mayor/review/${item.id}`)} testID={`mayor-report-card-${index}`} />}
-          ListEmptyComponent={<EmptyState icon="shield-checkmark" title="Queue is clear" subtitle="New citizen reports will appear here for your decision." testID="mayor-queue-empty" />}
+          ListEmptyComponent={
+            <EmptyState
+              icon={isError ? "cloud-offline" : "shield-checkmark"}
+              title={isError ? "Could not load review queue" : "Queue is clear"}
+              subtitle={isError ? "The service is temporarily unavailable. Refresh to try again." : "New citizen reports will appear here for your decision."}
+              actionTitle={isError ? "Retry" : undefined}
+              onAction={isError ? () => refetch() : undefined}
+              testID="mayor-queue-empty"
+            />
+          }
           contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: bottomChrome + spacing.xl, gap: spacing.md }}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { refetch(); }} tintColor={colors.brandPrimary} />}
         />

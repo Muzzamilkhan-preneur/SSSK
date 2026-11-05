@@ -26,7 +26,7 @@ export default function CitizenReports() {
   const session = useSession();
   const [filter, setFilter] = useState("all");
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: qk.reports(`citizen-${session?.citizen_id}`),
     queryFn: () => api.reports({ citizenId: session?.citizen_id }),
     enabled: !!session?.citizen_id,
@@ -54,7 +54,14 @@ export default function CitizenReports() {
           renderItem={({ item, index }) => <ReportCard report={item} onPress={() => router.push(`/citizen/report/${item.id}`)} testID={`citizen-report-card-${index}`} />}
           contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: bottomChrome + 96, gap: spacing.md }}
           ListEmptyComponent={
-            <EmptyState icon="camera" title={filter === "all" ? "No reports yet" : "Nothing here yet"} subtitle="Photograph a pothole and the AI will inspect it before it reaches the Mayor's office." actionTitle="Report a Pothole" onAction={() => router.push("/citizen/new")} testID="citizen-reports-empty" />
+            <EmptyState
+              icon={isError ? "cloud-offline" : "camera"}
+              title={isError ? "Could not load reports" : filter === "all" ? "No reports yet" : "Nothing here yet"}
+              subtitle={isError ? "The service is temporarily unavailable. Try again." : "Photograph a pothole and the AI will inspect it before it reaches the Mayor's office."}
+              actionTitle={isError ? "Retry" : "Report a Pothole"}
+              onAction={() => (isError ? refetch() : router.push("/citizen/new"))}
+              testID="citizen-reports-empty"
+            />
           }
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { refetch(); }} tintColor={colors.brandPrimary} />}
         />

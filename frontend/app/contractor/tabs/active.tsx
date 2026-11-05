@@ -23,7 +23,7 @@ export default function ContractorActive() {
 
   const session = useSession();
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: qk.reports("contractor"),
     queryFn: () => api.reports({ contractorId: session?.contractor_id }),
     enabled: !!session?.contractor_id,
@@ -48,7 +48,9 @@ export default function ContractorActive() {
           )}
           contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: bottomChrome + 24, gap: spacing.md }}
           ListEmptyComponent={
-            <EmptyState icon="construct" title="No active repair orders" subtitle="Jobs assigned by the Mayor Office will appear here with full location details." testID="contractor-active-empty" />
+            <EmptyState icon="construct" title="No active repair orders"             subtitle={isError ? "The service is temporarily unavailable. Refresh to try again." : "Jobs assigned by the Mayor Office will appear here with full location details."}
+            actionTitle={isError ? "Retry" : undefined}
+            onAction={isError ? () => refetch() : undefined} testID="contractor-active-empty" />
           }
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { refetch(); }} tintColor={colors.brandPrimary} />}
         />
