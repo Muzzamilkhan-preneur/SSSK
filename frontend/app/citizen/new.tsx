@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import { useMutation, useQueryClient } from "@tanstack/react-query";

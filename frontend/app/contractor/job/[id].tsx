@@ -50,7 +50,7 @@ export default function ContractorJob() {
   if (isLoading || !report) {
     return (
       <View style={styles.screen}>
-        <ScreenHeader title="Repair Order" onBack={() => (router.canGoBack() ? router.back() : router.replace("/contractor/active"))} />
+        <ScreenHeader title="Repair Order" onBack={() => (router.canGoBack() ? router.back() : router.replace("/contractor/tabs/active"))} />
         <ActivityIndicator style={{ marginTop: spacing.xxxl }} color={colors.brandPrimary} testID="job-loading" />
       </View>
     );
@@ -59,7 +59,7 @@ export default function ContractorJob() {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader title="Repair Order" subtitle={report.address ?? "Karachi"} onBack={() => (router.canGoBack() ? router.back() : router.replace("/contractor/active"))} right={<StatusBadge status={report.status} />} />
+      <ScreenHeader title="Repair Order" subtitle={report.address ?? "Karachi"} onBack={() => (router.canGoBack() ? router.back() : router.replace("/contractor/tabs/active"))} right={<StatusBadge status={report.status} />} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: insets.bottom + spacing.xl, gap: spacing.lg }}>
         <ReportBody report={report}>
           {report.status === "assigned" ? (
@@ -69,7 +69,7 @@ export default function ContractorJob() {
             <Animated.View entering={FadeIn.duration(200)}>
               <Card testID="proof-upload-card">
                 <Kicker icon="camera">Upload repair proof</Kicker>
-                <Text style={styles.help}>Photograph the same spot from a similar angle. AI compares it with the citizen's photo before the report is marked fixed.</Text>
+                <Text style={styles.help}>Photograph the same spot from a similar angle. AI compares it with the citizen&apos;s photo before the report is marked fixed.</Text>
                 {proof.isPending ? <CheckProgress title="AI repair check" steps={STEPS} pending results={null} testID="repair-check" /> : null}
                 {proof.isError ? <Text style={styles.err} testID="proof-error">{proof.error.message}</Text> : null}
                 {!proof.isPending ? <PhotoActions onPicked={(f) => proof.mutate(f)} cameraTitle={report.status === "rework" ? "Retake Proof" : "Proof Photo"} galleryTitle="From Gallery" /> : null}

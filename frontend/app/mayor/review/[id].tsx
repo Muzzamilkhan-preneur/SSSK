@@ -36,14 +36,15 @@ export default function ReviewReport() {
       await queryClient.invalidateQueries({ queryKey: qk.report(String(id)) });
       setAssignOpen(false);
       setFakeOpen(false);
-      (router.canGoBack() ? router.back() : router.replace("/mayor/queue"));
+      if (router.canGoBack()) router.back();
+      else router.replace("/mayor/tabs/queue");
     },
   });
 
   if (isLoading || !report) {
     return (
       <View style={styles.screen}>
-        <ScreenHeader title="Review" onBack={() => (router.canGoBack() ? router.back() : router.replace("/mayor/queue"))} />
+        <ScreenHeader title="Review" onBack={() => (router.canGoBack() ? router.back() : router.replace("/mayor/tabs/queue"))} />
         <ActivityIndicator style={{ marginTop: spacing.xxxl }} color={colors.brandPrimary} testID="review-loading" />
       </View>
     );
@@ -52,7 +53,7 @@ export default function ReviewReport() {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader title="Review" subtitle={report.address ?? "Karachi"} onBack={() => (router.canGoBack() ? router.back() : router.replace("/mayor/queue"))} right={<StatusBadge status={report.status} />} />
+      <ScreenHeader title="Review" subtitle={report.address ?? "Karachi"} onBack={() => (router.canGoBack() ? router.back() : router.replace("/mayor/tabs/queue"))} right={<StatusBadge status={report.status} />} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: insets.bottom + (pending ? 120 : spacing.xl), gap: spacing.lg }}>
         <ReportBody report={report}>
           {!pending && report.contractor_name ? (

@@ -18,7 +18,7 @@ export default function ReportDetail() {
   const insets = useSafeAreaInsets();
 
   const { data: report, isLoading } = useQuery({ queryKey: qk.report(String(id)), queryFn: () => api.report(String(id)), enabled: !!id });
-  const back = () => (router.canGoBack() ? router.back() : router.replace("/citizen/reports"));
+  const back = () => (router.canGoBack() ? router.back() : router.replace("/citizen/tabs/reports"));
 
   if (isLoading || !report) {
     return (
@@ -37,7 +37,7 @@ export default function ReportDetail() {
           <View style={styles.merged} testID="merged-banner">
             <Ionicons name="people" size={18} color={colors.info} />
             <Text style={styles.mergedText}>
-              Already reported. You've been added. {report.reporter_count} citizens have reported this pothole.
+              Already reported. You&apos;ve been added. {report.reporter_count} citizens have reported this pothole.
             </Text>
           </View>
         ) : null}

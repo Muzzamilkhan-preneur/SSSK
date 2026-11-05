@@ -2,10 +2,9 @@ import { useEffect } from "react";
 import { View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
 
-import { makeStyles, radius, spacing, useTheme } from "@/src/theme";
+import { makeStyles, radius, spacing } from "@/src/theme";
 
 function SkeletonRow({ index }: { index: number }) {
-  const { colors } = useTheme();
   const styles = useStyles();
   const opacity = useSharedValue(0.55);
   useEffect(() => {

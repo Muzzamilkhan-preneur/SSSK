@@ -101,8 +101,8 @@ export default function Register() {
       <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}>
         {phase === "name" ? (
           <Animated.View entering={FadeIn.duration(200)} style={styles.gap}>
-            <Text style={styles.h1}>Who's reporting?</Text>
-            <Text style={styles.body}>Your name appears on your reports. A quick selfie confirms a real person is behind every report, which keeps the Mayor's queue free of spam.</Text>
+            <Text style={styles.h1}>Who&apos;s reporting?</Text>
+            <Text style={styles.body}>Your name appears on your reports. A quick selfie confirms a real person is behind every report, which keeps the Mayor&apos;s queue free of spam.</Text>
             <TextInput testID="register-name-input" value={name} onChangeText={setName} placeholder="Full name" placeholderTextColor={colors.muted} style={styles.input} autoCapitalize="words" returnKeyType="next" />
             <PrimaryButton title="Take Selfie" icon="camera" testID="register-take-selfie-btn" disabled={!nameOk} onPress={openCamera} />
             <PrimaryButton title="Upload a photo" icon="image" variant="secondary" testID="register-upload-btn" disabled={!nameOk} onPress={upload} />

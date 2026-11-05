@@ -1,6 +1,6 @@
 import { ScrollView, Text, View } from "react-native";
 
-import { makeStyles, radius, fonts, spacing, useTheme, withAlpha } from "@/src/theme";
+import { makeStyles, radius, fonts, spacing, useTheme } from "@/src/theme";
 
 export function FilterChipRow({
   options,

@@ -3,7 +3,7 @@ import * as ImagePicker from "expo-image-picker";
 
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { ensureMediaPermission } from "@/src/utils/permissions";
-import { fonts, makeStyles, radius, spacing, useTheme, withAlpha } from "@/src/theme";
+import { fonts, makeStyles, radius, spacing, withAlpha } from "@/src/theme";
 import type { LocalFile } from "@/src/utils/upload";
 import { useState } from "react";
 
@@ -17,7 +17,6 @@ type Props = {
 // Camera + gallery buttons with the full permission contract handled in one place:
 // check → contextual request → "Open Settings" when permanently blocked.
 export function PhotoActions({ onPicked, cameraTitle = "Take Photo", galleryTitle = "Choose from Gallery", disabled = false }: Props) {
-  const { colors } = useTheme();
   const styles = useStyles();
   const [blocked, setBlocked] = useState<null | "camera" | "gallery">(null);
 

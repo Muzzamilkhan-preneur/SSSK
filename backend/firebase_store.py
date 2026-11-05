@@ -37,6 +37,10 @@ class _Cursor:
         )
         return self
 
+    def limit(self, count: int):
+        self.documents = self.documents[:count]
+        return self
+
     async def to_list(self, limit: int):
         return self.documents[:limit]
 
