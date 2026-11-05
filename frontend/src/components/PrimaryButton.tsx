@@ -1,86 +1,83 @@
-import { Linking, Text, View } from "react-native";
-import * as ImagePicker from "expo-image-picker";
+import Ionicons from "@react-native-vector-icons/ionicons";
+import { ActivityIndicator, Pressable, Text } from "react-native";
 
-import { PrimaryButton } from "@/src/components/PrimaryButton";
-import { ensureMediaPermission } from "@/src/utils/permissions";
-import { fonts, makeStyles, radius, spacing, useTheme, withAlpha } from "@/src/theme";
-import type { LocalFile } from "@/src/utils/upload";
-import { useState } from "react";
+import { fonts, makeStyles, radius, spacing, useTheme } from "@/src/theme";
 
 type Props = {
-  onPicked: (file: LocalFile) => void;
-  cameraTitle?: string;
-  galleryTitle?: string;
+  title: string;
+  onPress: () => void;
+  icon?: string;
+  variant?: "primary" | "secondary" | "ghost" | "danger";
+  small?: boolean;
+  loading?: boolean;
   disabled?: boolean;
+  testID?: string;
+  style?: object;
 };
 
-// Camera + gallery buttons with the full permission contract handled in one place:
-// check → contextual request → "Open Settings" when permanently blocked.
-export function PhotoActions({ onPicked, cameraTitle = "Take Photo", galleryTitle = "Choose from Gallery", disabled = false }: Props) {
+export function PrimaryButton({
+  title,
+  onPress,
+  icon,
+  variant = "primary",
+  small = false,
+  loading = false,
+  disabled = false,
+  testID,
+  style,
+}: Props) {
   const { colors } = useTheme();
   const styles = useStyles();
-  const [blocked, setBlocked] = useState<null | "camera" | "gallery">(null);
-
-  const pick = async (kind: "camera" | "gallery") => {
-    setBlocked(null);
-    const perm = await ensureMediaPermission(kind);
-    if (perm === "blocked") {
-      setBlocked(kind);
-      return;
-    }
-    if (perm !== "granted") return;
-    const options: ImagePicker.ImagePickerOptions = { mediaTypes: ["images"], quality: 0.6, allowsEditing: false };
-    const result = kind === "camera" ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
-    if (result.canceled || !result.assets?.[0]) return;
-    const asset = result.assets[0];
-    onPicked({
-      uri: asset.uri,
-      name: asset.fileName ?? `photo.${(asset.mimeType ?? "image/jpeg").split("/")[1] ?? "jpg"}`,
-      mimeType: asset.mimeType ?? "image/jpeg",
-    });
-  };
+  const inactive = disabled || loading;
+  const palette = {
+    primary: { backgroundColor: colors.brandPrimary, color: colors.onBrandPrimary },
+    secondary: { backgroundColor: colors.surfaceSecondary, color: colors.onSurface },
+    ghost: { backgroundColor: "transparent", color: colors.onSurface },
+    danger: { backgroundColor: colors.error, color: colors.onError },
+  }[variant];
 
   return (
-    <View style={styles.wrap}>
-      <View style={styles.row}>
-        <PrimaryButton title={cameraTitle} icon="camera" testID="camera-btn" onPress={() => pick("camera")} disabled={disabled} style={{ flex: 1 }} />
-        <PrimaryButton title={galleryTitle} icon="images" variant="secondary" testID="gallery-btn" onPress={() => pick("gallery")} disabled={disabled} style={{ flex: 1 }} />
-      </View>
-      {blocked ? (
-        <View style={styles.blocked} testID="permission-blocked-banner">
-          <Text style={styles.blockedText}>
-            {blocked === "camera" ? "Camera" : "Photo library"} access was turned off. Open Settings to allow it, then try again.
-          </Text>
-          <PrimaryButton title="Open Settings" icon="settings" small testID="open-settings-btn" onPress={() => Linking.openSettings()} />
-        </View>
-      ) : null}
-    </View>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled: inactive }}
+      disabled={inactive}
+      onPress={onPress}
+      testID={testID}
+      style={({ pressed }) => [
+        styles.button,
+        small ? styles.small : null,
+        { backgroundColor: palette.backgroundColor, opacity: pressed || inactive ? 0.65 : 1 },
+        style,
+      ]}
+    >
+      {loading ? <ActivityIndicator color={palette.color} size="small" /> : null}
+      {!loading && icon ? <Ionicons name={icon as never} size={small ? 16 : 18} color={palette.color} /> : null}
+      <Text style={[styles.label, small ? styles.smallLabel : null, { color: palette.color }]}>{title}</Text>
+    </Pressable>
   );
 }
 
 const useStyles = makeStyles((colors) => ({
-  wrap: {
-    gap: spacing.md,
-  },
-  row: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  blocked: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: withAlpha(colors.warning, 0.1),
-    borderWidth: 1,
-    borderColor: withAlpha(colors.warning, 0.35),
+  button: {
+    minHeight: 48,
+    paddingHorizontal: spacing.lg,
     borderRadius: radius.md,
-    padding: spacing.md,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
   },
-  blockedText: {
-    flex: 1,
-    fontFamily: fonts.medium,
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: colors.onSurfaceSecondary,
+  small: {
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  label: {
+    fontFamily: fonts.semibold,
+    fontSize: 15,
+  },
+  smallLabel: {
+    fontSize: 13,
   },
 }));
