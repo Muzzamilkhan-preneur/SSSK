@@ -770,6 +770,9 @@ async def register_citizen(name: str = Form(...), image: UploadFile = File(...))
         result = await run_in_threadpool(check_selfie, data, mime)
     except DecisionsUnavailable:
         raise HTTPException(status_code=503, detail=AI_UNAVAILABLE)
+    except Exception:
+        logger.exception("selfie verification failed unexpectedly")
+        raise HTTPException(status_code=503, detail=AI_UNAVAILABLE)
     if not result["passed"]:
         return {**result, "citizen": None}
     citizen = Citizen(name=name)

@@ -99,8 +99,13 @@ def decide(content: list[dict], questions: list[dict]) -> dict[str, dict]:
         payload = resp.json()
     except ValueError as exc:
         raise DecisionsUnavailable("invalid response") from exc
+    if not isinstance(payload, dict):
+        raise DecisionsUnavailable("invalid response shape")
+    raw_answers = payload.get("answers")
+    if not isinstance(raw_answers, list):
+        raise DecisionsUnavailable("invalid answers shape")
     answers = {}
-    for answer in payload.get("answers", []):
+    for answer in raw_answers:
         if isinstance(answer, dict) and isinstance(answer.get("name"), str):
             answers[answer["name"]] = answer
     return answers
