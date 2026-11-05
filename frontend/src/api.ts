@@ -36,17 +36,33 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
   return handle<T>(res);
 }
 
+async function upload<T>(path: string, options: Parameters<typeof uploadForm>[1]): Promise<T> {
+  const request = () => uploadForm(`${BASE_URL}${path}`, options).then(handle<T>);
+  try {
+    return await request();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/failed to fetch|network error|load failed/i.test(message)) throw error;
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      return await request();
+    } catch {
+      throw new Error("The service could not be reached. Check your connection and try again.");
+    }
+  }
+}
+
 export const api = {
   register: (name: string, file: LocalFile) =>
-    uploadForm(`${BASE_URL}/api/citizens/register`, { files: { image: file }, fields: { name } }).then((r) => handle<SelfieResult>(r)),
+    upload<SelfieResult>("/api/citizens/register", { files: { image: file }, fields: { name } }),
 
   analyzePothole: (file: LocalFile) =>
-    uploadForm(`${BASE_URL}/api/ai/analyze-pothole`, { files: { image: file } }).then((r) => handle<AiAnalysis>(r)),
+    upload<AiAnalysis>("/api/ai/analyze-pothole", { files: { image: file } }),
 
   geocode: (lat: number, lng: number) => get<{ address: string }>(`/api/geocode?lat=${lat}&lng=${lng}`),
 
   createReport: (input: { file: LocalFile; lat: number; lng: number; citizenId: string; citizenName: string; description: string }) =>
-    uploadForm(`${BASE_URL}/api/reports`, {
+    upload<{ merged: boolean; report: Report }>("/api/reports", {
       files: { image: input.file },
       fields: {
         lat: String(input.lat),
@@ -55,7 +71,7 @@ export const api = {
         citizen_name: input.citizenName,
         description: input.description,
       },
-    }).then((r) => handle<{ merged: boolean; report: Report }>(r)),
+    }),
 
   reports: (filters: { citizenId?: string; contractorId?: string; status?: string } = {}) => {
     const params = new URLSearchParams();
@@ -74,7 +90,7 @@ export const api = {
   startRepair: (id: string) => post<Report>(`/api/reports/${id}/start`),
 
   completeRepair: (id: string, file: LocalFile) =>
-    uploadForm(`${BASE_URL}/api/reports/${id}/complete`, { files: { image: file } }).then((r) => handle<Report>(r)),
+    upload<Report>(`/api/reports/${id}/complete`, { files: { image: file } }),
 
   contractors: () => get<Contractor[]>("/api/contractors"),
 

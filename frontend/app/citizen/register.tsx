@@ -97,7 +97,15 @@ export default function Register() {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader title="Citizen sign-up" subtitle={phase === "name" ? "Step 1 of 2 · Your name" : "Step 2 of 2 · Selfie check"} onBack={() => (phase === "name" ? router.back() : setPhase("name"))} />
+      <ScreenHeader title="Citizen sign-up" subtitle={phase === "name" ? "Step 1 of 2 · Your name" : "Step 2 of 2 · Selfie check"} onBack={() => {
+        if (phase !== "name") {
+          setPhase("name");
+        } else if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace("/");
+        }
+      }} />
       <KeyboardAwareScrollView bottomOffset={24} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}>
         {phase === "name" ? (
           <Animated.View entering={FadeIn.duration(200)} style={styles.gap}>
@@ -137,7 +145,7 @@ export default function Register() {
         {phase === "checking" || phase === "result" ? (
           <Animated.View entering={FadeIn.duration(200)} style={styles.gap}>
             {photo ? <Image source={{ uri: photo.uri }} style={styles.selfie} contentFit="cover" transition={200} /> : null}
-            <CheckProgress title="Live face check" steps={STEPS} pending={phase === "checking"} results={resultMap} testID="selfie-check" />
+            <CheckProgress title="AI verification" steps={STEPS} pending={phase === "checking"} pendingLabel="Verifying the uploaded photo…" results={resultMap} testID="selfie-check" />
             {result?.passed ? (
               <View style={[styles.banner, { backgroundColor: withAlpha(colors.success, 0.1), borderColor: withAlpha(colors.success, 0.4) }]} testID="selfie-passed-banner">
                 <Ionicons name="checkmark-circle" size={18} color={colors.success} />

@@ -13,12 +13,13 @@ type Props = {
   steps: CheckStep[];
   // While pending, steps advance one by one (calm, ~700ms each) and wait on the last.
   pending: boolean;
+  pendingLabel?: string;
   // When results arrive, each step shows pass/fail.
   results?: Record<string, boolean> | null;
   testID?: string;
 };
 
-export function CheckProgress({ title, steps, pending, results, testID = "check-progress" }: Props) {
+export function CheckProgress({ title, steps, pending, pendingLabel, results, testID = "check-progress" }: Props) {
   const { colors } = useTheme();
   const styles = useStyles();
   const [active, setActive] = useState(0);
@@ -33,7 +34,7 @@ export function CheckProgress({ title, steps, pending, results, testID = "check-
   return (
     <Animated.View entering={FadeIn.duration(200)} style={styles.card} testID={testID}>
       <Text style={styles.title}>{title}</Text>
-      {steps.map((step, i) => {
+      {(pending && pendingLabel ? [{ key: "pending", label: pendingLabel }] : steps).map((step, i) => {
         const result = results ? results[step.key] : undefined;
         const state: "done" | "active" | "waiting" | "pass" | "fail" =
           result === true ? "pass" : result === false ? "fail" : pending ? (i < active ? "done" : i === active ? "active" : "waiting") : "waiting";

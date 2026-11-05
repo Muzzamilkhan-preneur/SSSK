@@ -121,7 +121,15 @@ export default function NewReport() {
       <ScreenHeader
         title={step === "photo" ? "New Report" : "Confirm Location"}
         subtitle={step === "photo" ? "Step 1 of 2 · Photo and AI inspection" : "Step 2 of 2 · Drop the pin"}
-        onBack={() => (step === "location" ? setStep("photo") : router.back())}
+        onBack={() => {
+          if (step === "location") {
+            setStep("photo");
+          } else if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace("/citizen/tabs/reports");
+          }
+        }}
         right={
           <View style={styles.steps}>
             <View style={[styles.stepDot, styles.stepDotActive]} />
