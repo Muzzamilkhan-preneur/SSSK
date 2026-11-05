@@ -9,9 +9,9 @@
 //
 // Why: on a phone the global fetch is `expo/fetch` (SDK 54+), which rejects the old RN
 // `{ uri, name, type }` part with "Unsupported FormDataPart implementation". The web
-// preview accepts that shape, so the bug only shows on a device. Native files are read
-// with expo-file-system before creating the Blob. Never set Content-Type: the runtime
-// adds the multipart boundary.
+// preview accepts that shape, so the bug only shows on a device. Native files are passed
+// as expo-file-system File objects. Never set Content-Type: the runtime adds the
+// multipart boundary.
 
 import { Platform } from "react-native";
 import { fetch as expoFetch } from "expo/fetch";
@@ -43,9 +43,7 @@ export async function toFormDataPart(file: LocalFile): Promise<Blob> {
     const type = file.mimeType || blob.type;
     return type && type !== blob.type ? new Blob([blob], { type }) : blob;
   }
-  const nativeFile = new ExpoFile(file.uri);
-  const bytes = await nativeFile.arrayBuffer();
-  return new Blob([bytes], { type: file.mimeType || "image/jpeg" });
+  return new ExpoFile(file.uri);
 }
 
 export async function uploadForm(url: string, opts: UploadOptions): Promise<Response> {
