@@ -103,6 +103,7 @@ export default function Register() {
   const resultMap = result ? Object.fromEntries(result.checks.map((c) => [c.key, !!c.passed])) : null;
   const blocked = permission && !permission.granted && !permission.canAskAgain;
   const nameOk = name.trim().length >= 2;
+  const canUseDemoFallback = __DEV__ && !!error && /temporarily unavailable|could not be reached|AI check unavailable/i.test(error);
 
   return (
     <View style={styles.screen}>
@@ -167,9 +168,9 @@ export default function Register() {
                   <Ionicons name="close-circle" size={18} color={colors.error} />
                   <Text style={styles.bannerText}>{error ?? result?.reason}</Text>
                 </View>
-                {__DEV__ && Platform.OS === "web" ? (
+                {canUseDemoFallback ? (
                   <PrimaryButton
-                    title="Continue demo"
+                    title="Continue demo (AI offline)"
                     icon="arrow-forward"
                     testID="selfie-demo-btn"
                     onPress={async () => {
