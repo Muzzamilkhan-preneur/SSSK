@@ -551,6 +551,23 @@ SEED_REPORTS = [
 
 async def seed_demo_data() -> None:
     try:
+        missing = [
+            spec["file"]
+            for spec in SEED_REPORTS
+            if not (SEED_DIR / spec["file"]).is_file()
+        ]
+        missing_after = [
+            spec["after"]
+            for spec in SEED_REPORTS
+            if spec.get("after") and not (SEED_DIR / spec["after"]).is_file()
+        ]
+        missing.extend(missing_after)
+        if missing:
+            logger.warning(
+                "demo seed skipped; missing optional files: %s",
+                ", ".join(sorted(set(missing))),
+            )
+            return
         meta = await db.meta.find_one({"_id": "seed"})
         if meta and meta.get("version") == SEED_VERSION:
             return
