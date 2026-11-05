@@ -8,13 +8,13 @@ import time
 
 import requests
 
-DECISIONS_URL = "https://api.openai.com/v1/chat/completions"
+OPENAI_URL = "https://api.openai.com/v1/chat/completions"
 MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 logger = logging.getLogger(__name__)
 
 
 class DecisionsUnavailable(Exception):
-    """The configured AI provider could not produce a valid answer."""
+    """The OpenAI provider could not produce a valid answer."""
 
 
 def image_part(data: bytes, mime: str = "image/jpeg") -> dict:
@@ -58,21 +58,67 @@ def _prompt(questions: list[dict]) -> str:
         for q in questions
     )
     return (
-        "Return ONLY valid JSON with the exact question names as keys. "
-        "For predicate, return {\"type\":\"predicate\",\"probability\":number} "
-        "where probability is 0 to 1. For choice, return "
-        "{\"type\":\"choice\",\"choice\":string,\"confidence\":number}. "
-        "For score, return {\"type\":\"score\",\"score\":integer,"
-        "\"probabilities\":[{\"value\":integer,\"probability\":number}]}. "
-        "Do not include markdown.\n\nQuestions:\n" + details
+        "Return only valid JSON with the exact question names as keys. "
+        "For predicate, return {\"type\":\"predicate\",\"probability\":number}. "
+        "For choice, return {\"type\":\"choice\",\"choice\":string,"
+        "\"confidence\":number}. For score, return {\"type\":\"score\","
+        "\"score\":integer,\"probabilities\":[{\"value\":integer,"
+        "\"probability\":number}]}. Do not include markdown.\n\nQuestions:\n"
+        + details
     )
 
 
+def _request(payload: dict, key: str) -> dict:
+    response = None
+    for attempt in range(2):
+        try:
+            response = requests.post(
+                OPENAI_URL,
+                headers={
+                    "Authorization": f"Bearer {key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=60,
+            )
+        except requests.RequestException as exc:
+            logger.error("OpenAI request failed: %s", exc)
+            if attempt == 1:
+                raise DecisionsUnavailable("AI_NETWORK_ERROR") from exc
+            continue
+        if response.status_code < 500:
+            break
+        time.sleep(1)
+    if response is None:
+        raise DecisionsUnavailable("AI_NETWORK_ERROR")
+    if response.status_code != 200:
+        logger.error("OpenAI %s: %s", response.status_code, response.text[:400])
+        if response.status_code == 401:
+            code = "AI_AUTH_ERROR"
+        elif response.status_code == 429:
+            code = "AI_RATE_LIMITED"
+        elif response.status_code == 400:
+            code = "AI_INVALID_REQUEST"
+        elif response.status_code >= 500:
+            code = "AI_PROVIDER_ERROR"
+        else:
+            code = "AI_REQUEST_ERROR"
+        raise DecisionsUnavailable(code)
+    try:
+        content = response.json()["choices"][0]["message"]["content"]
+        result = json.loads(content)
+    except (ValueError, KeyError, IndexError, TypeError) as exc:
+        raise DecisionsUnavailable("AI_INVALID_RESPONSE") from exc
+    if not isinstance(result, dict):
+        raise DecisionsUnavailable("AI_INVALID_RESPONSE")
+    return result
+
+
 def decide(content: list[dict], questions: list[dict]) -> dict[str, dict]:
-    """Run one structured vision request and return answers by question name."""
+    """Call the official OpenAI vision API for structured image analysis."""
     key = os.environ.get("OPENAI_API_KEY") or ""
     if not key:
-        raise DecisionsUnavailable("OPENAI_API_KEY is not set")
+        raise DecisionsUnavailable("AI_AUTH_ERROR")
     message_content = []
     for part in content:
         if part.get("type") == "input_image":
@@ -85,46 +131,58 @@ def decide(content: list[dict], questions: list[dict]) -> dict[str, dict]:
         elif part.get("type") == "input_text":
             message_content.append({"type": "text", "text": part["text"]})
     message_content.append({"type": "text", "text": _prompt(questions)})
+    return _request(
+        {
+            "model": MODEL,
+            "messages": [{"role": "user", "content": message_content}],
+            "response_format": {"type": "json_object"},
+        },
+        key,
+    )
 
-    response = None
-    for attempt in range(2):
-        try:
-            response = requests.post(
-                DECISIONS_URL,
-                headers={
-                    "Authorization": f"Bearer {key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": MODEL,
-                    "messages": [{"role": "user", "content": message_content}],
-                    "response_format": {"type": "json_object"},
-                },
-                timeout=60,
-            )
-        except requests.RequestException as exc:
-            logger.error("OpenAI request failed: %s", exc)
-            if attempt == 1:
-                raise DecisionsUnavailable("network error") from exc
-            continue
-        if response.status_code < 500:
-            break
-        time.sleep(1)
 
-    if response is None or response.status_code != 200:
-        status = response.status_code if response is not None else "no response"
-        detail = response.text[:400] if response is not None else ""
-        logger.error("OpenAI %s: %s", status, detail)
-        raise DecisionsUnavailable(f"status {status}")
+def verify_selfie(data: bytes, mime: str = "image/jpeg") -> dict[str, float]:
+    """Call OpenAI directly for the four selfie checks."""
+    key = os.environ.get("OPENAI_API_KEY") or ""
+    if not key:
+        raise DecisionsUnavailable("AI_AUTH_ERROR")
+    if not mime.startswith("image/"):
+        mime = "image/jpeg"
+    prompt = (
+        "Assess this citizen registration selfie. Return only JSON with exactly "
+        "these numeric keys from 0 to 1: has_face, single_person, face_clear, "
+        "real_capture. The last key means a direct camera photo of a real person, "
+        "not a screen, print, poster, drawing, or cartoon."
+    )
+    result = _request(
+        {
+            "model": MODEL,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}",
+                                "detail": "low",
+                            },
+                        },
+                    ],
+                }
+            ],
+            "response_format": {"type": "json_object"},
+        },
+        key,
+    )
     try:
-        payload = response.json()
-        text = payload["choices"][0]["message"]["content"]
-        answers = json.loads(text)
-    except (ValueError, KeyError, IndexError, TypeError) as exc:
-        raise DecisionsUnavailable("invalid response") from exc
-    if not isinstance(answers, dict):
-        raise DecisionsUnavailable("invalid response shape")
-    return answers
+        return {
+            name: max(0.0, min(1.0, float(result.get(name, 0.0))))
+            for name in ("has_face", "single_person", "face_clear", "real_capture")
+        }
+    except (TypeError, ValueError) as exc:
+        raise DecisionsUnavailable("AI_INVALID_RESPONSE") from exc
 
 
 def prob(answers: dict, name: str, default: float = 0.0) -> float:

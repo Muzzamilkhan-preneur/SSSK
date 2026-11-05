@@ -31,6 +31,7 @@ from decisions import (
     prob,
     score,
     text_part,
+    verify_selfie,
 )  # noqa: E402
 
 db = FirestoreDatabase()
@@ -319,16 +320,10 @@ SELFIE_CHECKS = [
 
 
 def check_selfie(data: bytes, mime: str) -> dict:
-    a = decide(
-        [
-            text_part("Selfie taken during citizen registration."),
-            image_part(data, mime),
-        ],
-        [predicate(k, q) for k, _, _, q in SELFIE_CHECKS],
-    )
+    probabilities = verify_selfie(data, mime)
     checks, reason = [], None
     for key, label, fail_reason, _ in SELFIE_CHECKS:
-        p = prob(a, key)
+        p = probabilities[key]
         passed = p >= 0.6
         checks.append(
             {"key": key, "label": label, "probability": round(p, 3), "passed": passed}
@@ -768,8 +763,8 @@ async def register_citizen(name: str = Form(...), image: UploadFile = File(...))
     mime = image.content_type or "image/jpeg"
     try:
         result = await run_in_threadpool(check_selfie, data, mime)
-    except DecisionsUnavailable:
-        raise HTTPException(status_code=503, detail=AI_UNAVAILABLE)
+    except DecisionsUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
     except Exception:
         logger.exception("selfie verification failed unexpectedly")
         raise HTTPException(status_code=503, detail=AI_UNAVAILABLE)
@@ -812,8 +807,8 @@ async def analyze_pothole(image: UploadFile = File(...)):
         result = await run_in_threadpool(
             analyze_road_image, data, image.content_type or "image/jpeg"
         )
-    except DecisionsUnavailable:
-        raise HTTPException(status_code=503, detail=AI_UNAVAILABLE)
+    except DecisionsUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
     return {**result, "duplicate_photo": False}
 
 
@@ -839,8 +834,8 @@ async def create_report(
     # Road-damage check first, so neither a merge nor a new report accepts a non-road photo.
     try:
         a = await run_in_threadpool(analyze_road_image, data, mime)
-    except DecisionsUnavailable:
-        raise HTTPException(status_code=503, detail=AI_UNAVAILABLE)
+    except DecisionsUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
     if not a["is_road_damage"]:
         raise HTTPException(
             status_code=422,
@@ -1038,8 +1033,8 @@ async def complete_repair(report_id: str, image: UploadFile = File(...)):
     before, before_mime = await run_in_threadpool(get_object, report.image_path)
     try:
         v = await run_in_threadpool(verify_repair, before, before_mime, data, mime)
-    except DecisionsUnavailable:
-        raise HTTPException(status_code=503, detail=AI_UNAVAILABLE)
+    except DecisionsUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
 
     report.after_image_path = (
         await run_in_threadpool(
