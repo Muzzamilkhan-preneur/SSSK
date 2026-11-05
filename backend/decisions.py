@@ -1,12 +1,14 @@
 """OpenAI vision client using the official Chat Completions API."""
 
 import base64
+from io import BytesIO
 import json
 import logging
 import os
 import time
 
 import requests
+from PIL import Image, UnidentifiedImageError
 
 OPENAI_URL = "https://api.openai.com/v1/chat/completions"
 MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
@@ -15,6 +17,17 @@ logger = logging.getLogger(__name__)
 
 class DecisionsUnavailable(Exception):
     """The OpenAI provider could not produce a valid answer."""
+
+
+def _jpeg_bytes(data: bytes) -> bytes:
+    try:
+        with Image.open(BytesIO(data)) as image:
+            image.thumbnail((1200, 1200))
+            output = BytesIO()
+            image.convert("RGB").save(output, format="JPEG", quality=82, optimize=True)
+            return output.getvalue()
+    except (UnidentifiedImageError, OSError) as exc:
+        raise DecisionsUnavailable("AI_INVALID_IMAGE") from exc
 
 
 def image_part(data: bytes, mime: str = "image/jpeg") -> dict:
@@ -146,8 +159,8 @@ def verify_selfie(data: bytes, mime: str = "image/jpeg") -> dict[str, float]:
     key = os.environ.get("OPENAI_API_KEY") or ""
     if not key:
         raise DecisionsUnavailable("AI_AUTH_ERROR")
-    if not mime.startswith("image/"):
-        mime = "image/jpeg"
+    data = _jpeg_bytes(data)
+    mime = "image/jpeg"
     prompt = (
         "Assess this citizen registration selfie. Return only JSON with exactly "
         "these numeric keys from 0 to 1: has_face, single_person, face_clear, "
