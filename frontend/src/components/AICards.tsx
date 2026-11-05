@@ -4,7 +4,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import { Card, Kicker } from "@/src/components/Card";
 import { ScoreBar } from "@/src/components/ScoreBar";
 import { SeverityChip } from "@/src/components/SeverityChip";
-import { fonts, makeStyles, radius, spacing, useTheme, withAlpha } from "@/src/theme";
+import { fonts, makeStyles, spacing, useTheme, withAlpha } from "@/src/theme";
 import type { Finding, Severity, Verification } from "@/src/types";
 
 // Confidence checklist: each finding with a probability bar.
@@ -33,38 +33,23 @@ export function FindingsList({ findings, testID = "findings-list" }: { findings:
   );
 }
 
-export function NeedsReviewTag() {
-  const { colors } = useTheme();
-  const styles = useStyles();
-  return (
-    <View style={styles.reviewTag} testID="needs-review-tag">
-      <Ionicons name="eye" size={12} color={colors.info} />
-      <Text style={styles.reviewText}>Needs Mayor review</Text>
-    </View>
-  );
-}
-
 type InspectionProps = {
   severity?: Severity | null;
-  severityConfidence?: number | null;
   findings: Finding[];
-  needsReview?: boolean;
   testID?: string;
 };
 
-export function InspectionCard({ severity, severityConfidence, findings, needsReview, testID = "ai-inspection-card" }: InspectionProps) {
+export function InspectionCard({ severity, findings, testID = "ai-inspection-card" }: InspectionProps) {
   const styles = useStyles();
   return (
     <Card testID={testID}>
       <View style={styles.head}>
         <Kicker icon="sparkles">What the AI saw</Kicker>
-        {needsReview ? <NeedsReviewTag /> : null}
       </View>
       {severity ? (
         <View style={styles.sevRow}>
           <Text style={styles.sevLabel}>Severity</Text>
           <SeverityChip severity={severity} testID="inspection-severity" />
-          {severityConfidence != null ? <Text style={styles.sevConf}>{Math.round(severityConfidence * 100)}% confident</Text> : null}
         </View>
       ) : null}
       {findings.length ? <FindingsList findings={findings} /> : null}
@@ -134,26 +119,6 @@ const useStyles = makeStyles((colors) => ({
     fontFamily: fonts.display,
     fontSize: 16,
     color: colors.onSurface,
-  },
-  sevConf: {
-    marginLeft: "auto",
-    fontFamily: fonts.medium,
-    fontSize: 12,
-    color: colors.muted,
-  },
-  reviewTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    borderRadius: radius.pill,
-    paddingHorizontal: 8,
-    height: 24,
-    backgroundColor: withAlpha(colors.info, 0.1),
-  },
-  reviewText: {
-    fontFamily: fonts.semibold,
-    fontSize: 11,
-    color: colors.info,
   },
   verdict: {
     fontFamily: fonts.bold,

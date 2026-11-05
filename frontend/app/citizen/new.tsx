@@ -161,7 +161,7 @@ export default function NewReport() {
 
             {usable && analysis ? (
               <>
-                <InspectionCard severity={analysis.severity} severityConfidence={analysis.severity_confidence} findings={analysis.findings ?? []} needsReview={analysis.needs_review} />
+                <InspectionCard severity={analysis.severity} findings={analysis.findings ?? []} />
                 <PrimaryButton title="Confirm Location" icon="arrow-forward" testID="confirm-location-btn" onPress={() => setStep("location")} />
                 <PrimaryButton title="Use a different photo" variant="ghost" small testID="change-photo-btn" onPress={() => { setPhoto(null); setAnalysis(null); analyze.reset(); }} />
               </>
