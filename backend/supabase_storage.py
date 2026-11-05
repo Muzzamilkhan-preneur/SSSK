@@ -30,7 +30,11 @@ def put_object(path: str, data: bytes, content_type: str) -> dict:
         data=data,
         timeout=120,
     )
-    response.raise_for_status()
+    if not response.ok:
+        detail = response.text[:200].replace("\n", " ")
+        raise RuntimeError(
+            f"Supabase storage upload failed ({response.status_code}): {detail}"
+        )
     return {"path": path}
 
 
