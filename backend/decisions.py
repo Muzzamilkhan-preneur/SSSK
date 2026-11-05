@@ -179,7 +179,7 @@ def verify_selfie(data: bytes, mime: str = "image/jpeg") -> dict[str, float]:
                             "type": "image_url",
                             "image_url": {
                                 "url": f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}",
-                                "detail": "low",
+                                "detail": "high",
                             },
                         },
                     ],
