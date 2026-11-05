@@ -18,6 +18,8 @@ class DecisionsUnavailable(Exception):
 
 
 def image_part(data: bytes, mime: str = "image/jpeg") -> dict:
+    if not mime.startswith("image/"):
+        mime = "image/jpeg"
     return {
         "type": "input_image",
         "image_url": f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}",
@@ -75,7 +77,10 @@ def decide(content: list[dict], questions: list[dict]) -> dict[str, dict]:
     for part in content:
         if part.get("type") == "input_image":
             message_content.append(
-                {"type": "image_url", "image_url": {"url": part["image_url"]}}
+                {
+                    "type": "image_url",
+                    "image_url": {"url": part["image_url"], "detail": "low"},
+                }
             )
         elif part.get("type") == "input_text":
             message_content.append({"type": "text", "text": part["text"]})
