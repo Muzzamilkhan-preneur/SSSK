@@ -778,17 +778,20 @@ async def register_citizen(name: str = Form(...), image: UploadFile = File(...))
     citizen = Citizen(name=name)
     res = await db.citizens.insert_one(citizen.to_firestore())
     citizen.id = str(res.inserted_id)
-    citizen.selfie_path = (
-        await run_in_threadpool(
-            put_object,
-            f"{APP_NAME}/selfies/{citizen.id}.{_ext(image.filename)}",
-            data,
-            mime,
+    try:
+        citizen.selfie_path = (
+            await run_in_threadpool(
+                put_object,
+                f"{APP_NAME}/selfies/{citizen.id}.{_ext(image.filename)}",
+                data,
+                mime,
+            )
+        )["path"]
+        await db.citizens.update_one(
+            {"_id": res.inserted_id}, {"$set": {"selfie_path": citizen.selfie_path}}
         )
-    )["path"]
-    await db.citizens.update_one(
-        {"_id": res.inserted_id}, {"$set": {"selfie_path": citizen.selfie_path}}
-    )
+    except Exception:
+        logger.exception("selfie archival failed after successful verification")
     return {**result, "citizen": citizen.model_dump()}
 
 
