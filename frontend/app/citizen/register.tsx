@@ -150,6 +150,18 @@ export default function Register() {
                   <Ionicons name="close-circle" size={18} color={colors.error} />
                   <Text style={styles.bannerText}>{error ?? result?.reason}</Text>
                 </View>
+                {__DEV__ && Platform.OS === "web" ? (
+                  <PrimaryButton
+                    title="Continue demo"
+                    icon="arrow-forward"
+                    testID="selfie-demo-btn"
+                    onPress={async () => {
+                      const session = { role: "citizen" as const, name: name.trim(), citizen_id: "demo-citizen" };
+                      await saveSession(session);
+                      router.replace(homeFor(session));
+                    }}
+                  />
+                ) : null}
                 <PrimaryButton title="Retake" icon="refresh" testID="selfie-retake-btn" onPress={() => (permission?.granted ? setPhase("camera") : openCamera())} />
                 <PrimaryButton title="Upload a different photo" variant="secondary" icon="image" testID="selfie-reupload-btn" onPress={upload} />
               </>
