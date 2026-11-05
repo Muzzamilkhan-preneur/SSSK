@@ -1,4 +1,4 @@
-# expo
+# SSSK
 
 Saaf Sarak is a mobile app with a backend: **FastAPI with Firestore and Supabase Storage**
 behind an **Expo + expo-router** app in strict TypeScript. The app runs as a
