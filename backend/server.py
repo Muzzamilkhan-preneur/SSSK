@@ -254,8 +254,8 @@ def analyze_road_image(data: bytes, mime: str) -> dict:
         return result
 
     sev = a.get("severity") or {}
-    if sev.get("type") != "score":
-        raise DecisionsUnavailable("AI_INVALID_RESPONSE")
+    if not isinstance(sev, dict):
+        sev = {}
     probabilities = []
     for item in sev.get("probabilities", []):
         try:
@@ -265,17 +265,26 @@ def analyze_road_image(data: bytes, mime: str) -> dict:
             continue
         if 0 <= value < len(SEVERITY_LEVELS) and 0 <= probability <= 1:
             probabilities.append((value, probability))
-    if not probabilities:
-        raise DecisionsUnavailable("AI_INVALID_RESPONSE")
-    top_value, sev_conf = max(probabilities, key=lambda item: item[1])
+    if probabilities:
+        top_value, sev_conf = max(probabilities, key=lambda item: item[1])
+    else:
+        top_value, sev_conf = 1, 0.0
     sev_key = SEVERITY_LEVELS[top_value][0]
+    try:
+        severity_score = float(sev.get("score", top_value)) / (len(SEVERITY_LEVELS) - 1)
+    except (TypeError, ValueError):
+        severity_score = top_value / (len(SEVERITY_LEVELS) - 1)
 
     dt = a.get("damage_type") or {}
-    dt_value = dt.get("choice") if dt.get("type") == "choice" else "other"
+    dt_value = (
+        dt.get("choice")
+        if isinstance(dt, dict) and dt.get("type") == "choice"
+        else "other"
+    )
     try:
         dt_conf = (
             max(0.0, min(1.0, float(dt.get("confidence", 0))))
-            if dt.get("type") == "choice"
+            if isinstance(dt, dict) and dt.get("type") == "choice"
             else 0.0
         )
     except (TypeError, ValueError):
@@ -296,17 +305,7 @@ def analyze_road_image(data: bytes, mime: str) -> dict:
     result.update(
         {
             "severity": sev_key,
-            "severity_score": round(
-                max(
-                    0.0,
-                    min(
-                        1.0,
-                        float(sev.get("score", top_value))
-                        / (len(SEVERITY_LEVELS) - 1),
-                    ),
-                ),
-                3,
-            ),
+            "severity_score": round(max(0.0, min(1.0, severity_score)), 3),
             "severity_confidence": round(sev_conf, 3),
             "damage_type": dt_value,
             "findings": findings,

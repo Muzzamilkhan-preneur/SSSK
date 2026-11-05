@@ -200,6 +200,8 @@ def verify_selfie(data: bytes, mime: str = "image/jpeg") -> dict[str, float]:
 
 def prob(answers: dict, name: str, default: float = 0.0) -> float:
     answer = answers.get(name) or {}
+    if not isinstance(answer, dict):
+        return default
     if answer.get("type") != "predicate":
         return default
     try:
