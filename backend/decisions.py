@@ -1,25 +1,20 @@
-"""OpenAI Decisions API client (user's own OPENAI_API_KEY).
-
-POST https://api.openai.com/v1/decisions with model gpt-6-luna. Returns typed
-answers: predicate -> probability, choice -> choice + probabilities + confidence,
-score -> score + per-level probabilities + confidence.
-"""
+"""OpenAI vision client using the official Chat Completions API."""
 
 import base64
+import json
 import logging
 import os
 import time
 
 import requests
 
-DECISIONS_URL = "https://api.openai.com/v1/decisions"
-MODEL = "gpt-6-luna"
-
+DECISIONS_URL = "https://api.openai.com/v1/chat/completions"
+MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 logger = logging.getLogger(__name__)
 
 
 class DecisionsUnavailable(Exception):
-    """Key missing, out of credit, or the service failed: the app must not guess."""
+    """The configured AI provider could not produce a valid answer."""
 
 
 def image_part(data: bytes, mime: str = "image/jpeg") -> dict:
@@ -33,7 +28,7 @@ def text_part(text: str) -> dict:
     return {"type": "input_text", "text": text}
 
 
-def predicate(name: str, instructions) -> dict:
+def predicate(name: str, instructions: str) -> dict:
     return {"type": "predicate", "name": name, "instructions": instructions}
 
 
@@ -42,7 +37,7 @@ def choice(name: str, instructions: str, choices: list[tuple[str, str]]) -> dict
         "type": "choice",
         "name": name,
         "instructions": instructions,
-        "choices": [{"value": v, "description": d} for v, d in choices],
+        "choices": [{"value": value, "description": desc} for value, desc in choices],
     }
 
 
@@ -51,19 +46,45 @@ def score(name: str, instructions: str, levels: list[tuple[str, str]]) -> dict:
         "type": "score",
         "name": name,
         "instructions": instructions,
-        "levels": [{"label": l, "description": d} for l, d in levels],
+        "levels": [{"label": label, "description": desc} for label, desc in levels],
     }
 
 
+def _prompt(questions: list[dict]) -> str:
+    details = "\n".join(
+        f"- {q['name']} ({q['type']}): {q.get('instructions', '')}"
+        for q in questions
+    )
+    return (
+        "Return ONLY valid JSON with the exact question names as keys. "
+        "For predicate, return {\"type\":\"predicate\",\"probability\":number} "
+        "where probability is 0 to 1. For choice, return "
+        "{\"type\":\"choice\",\"choice\":string,\"confidence\":number}. "
+        "For score, return {\"type\":\"score\",\"score\":integer,"
+        "\"probabilities\":[{\"value\":integer,\"probability\":number}]}. "
+        "Do not include markdown.\n\nQuestions:\n" + details
+    )
+
+
 def decide(content: list[dict], questions: list[dict]) -> dict[str, dict]:
-    """Synchronous call; run via run_in_threadpool. Returns {name: answer}."""
+    """Run one structured vision request and return answers by question name."""
     key = os.environ.get("OPENAI_API_KEY") or ""
     if not key:
         raise DecisionsUnavailable("OPENAI_API_KEY is not set")
-    resp = None
-    for attempt in range(2):  # one retry on transient 5xx
+    message_content = []
+    for part in content:
+        if part.get("type") == "input_image":
+            message_content.append(
+                {"type": "image_url", "image_url": {"url": part["image_url"]}}
+            )
+        elif part.get("type") == "input_text":
+            message_content.append({"type": "text", "text": part["text"]})
+    message_content.append({"type": "text", "text": _prompt(questions)})
+
+    response = None
+    for attempt in range(2):
         try:
-            resp = requests.post(
+            response = requests.post(
                 DECISIONS_URL,
                 headers={
                     "Authorization": f"Bearer {key}",
@@ -71,51 +92,41 @@ def decide(content: list[dict], questions: list[dict]) -> dict[str, dict]:
                 },
                 json={
                     "model": MODEL,
-                    "input": [{"role": "user", "content": content}],
-                    "questions": questions,
+                    "messages": [{"role": "user", "content": message_content}],
+                    "response_format": {"type": "json_object"},
                 },
-                timeout=45,
+                timeout=60,
             )
         except requests.RequestException as exc:
-            logger.error("decisions request failed: %s", exc)
+            logger.error("OpenAI request failed: %s", exc)
             if attempt == 1:
                 raise DecisionsUnavailable("network error") from exc
             continue
-        if resp.status_code < 500:
+        if response.status_code < 500:
             break
-        logger.warning(
-            "decisions %s (attempt %d): %s",
-            resp.status_code,
-            attempt + 1,
-            resp.text[:200],
-        )
-        time.sleep(1.0)
-    if resp is None or resp.status_code != 200:
-        status = resp.status_code if resp is not None else "no response"
-        detail = resp.text[:400] if resp is not None else ""
-        logger.error("decisions %s: %s", status, detail)
+        time.sleep(1)
+
+    if response is None or response.status_code != 200:
+        status = response.status_code if response is not None else "no response"
+        detail = response.text[:400] if response is not None else ""
+        logger.error("OpenAI %s: %s", status, detail)
         raise DecisionsUnavailable(f"status {status}")
     try:
-        payload = resp.json()
-    except ValueError as exc:
+        payload = response.json()
+        text = payload["choices"][0]["message"]["content"]
+        answers = json.loads(text)
+    except (ValueError, KeyError, IndexError, TypeError) as exc:
         raise DecisionsUnavailable("invalid response") from exc
-    if not isinstance(payload, dict):
+    if not isinstance(answers, dict):
         raise DecisionsUnavailable("invalid response shape")
-    raw_answers = payload.get("answers")
-    if not isinstance(raw_answers, list):
-        raise DecisionsUnavailable("invalid answers shape")
-    answers = {}
-    for answer in raw_answers:
-        if isinstance(answer, dict) and isinstance(answer.get("name"), str):
-            answers[answer["name"]] = answer
     return answers
 
 
 def prob(answers: dict, name: str, default: float = 0.0) -> float:
-    a = answers.get(name) or {}
-    if a.get("type") != "predicate":
+    answer = answers.get(name) or {}
+    if answer.get("type") != "predicate":
         return default
     try:
-        return float(a.get("probability", default))
+        return float(answer.get("probability", default))
     except (TypeError, ValueError):
         return default

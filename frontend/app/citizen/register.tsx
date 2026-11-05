@@ -103,7 +103,6 @@ export default function Register() {
   const resultMap = result ? Object.fromEntries(result.checks.map((c) => [c.key, !!c.passed])) : null;
   const blocked = permission && !permission.granted && !permission.canAskAgain;
   const nameOk = name.trim().length >= 2;
-  const canUseDemoFallback = __DEV__ && !!error && /temporarily unavailable|could not be reached|AI check unavailable/i.test(error);
 
   return (
     <View style={styles.screen}>
@@ -168,18 +167,6 @@ export default function Register() {
                   <Ionicons name="close-circle" size={18} color={colors.error} />
                   <Text style={styles.bannerText}>{error ?? result?.reason}</Text>
                 </View>
-                {canUseDemoFallback ? (
-                  <PrimaryButton
-                    title="Continue demo (AI offline)"
-                    icon="arrow-forward"
-                    testID="selfie-demo-btn"
-                    onPress={async () => {
-                      const session = { role: "citizen" as const, name: name.trim(), citizen_id: "demo-citizen" };
-                      await saveSession(session);
-                      router.replace(homeFor(session));
-                    }}
-                  />
-                ) : null}
                 <PrimaryButton title="Retake" icon="refresh" testID="selfie-retake-btn" onPress={() => (permission?.granted ? setPhase("camera") : openCamera())} />
                 <PrimaryButton title="Upload a different photo" variant="secondary" icon="image" testID="selfie-reupload-btn" onPress={upload} />
               </>
