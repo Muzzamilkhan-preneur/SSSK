@@ -42,11 +42,15 @@ async function upload<T>(path: string, options: Parameters<typeof uploadForm>[1]
     return await request();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (!/failed to fetch|network error|load failed/i.test(message)) throw error;
+    const transient = /failed to fetch|network error|load failed|Request failed \(503\)/i.test(message);
+    if (!transient) throw error;
     await new Promise((resolve) => setTimeout(resolve, 800));
     try {
       return await request();
     } catch {
+      if (/Request failed \(503\)/i.test(message)) {
+        throw new Error("AI verification is temporarily unavailable. Please try again in a moment.");
+      }
       throw new Error("The service could not be reached. Check your connection and try again.");
     }
   }
