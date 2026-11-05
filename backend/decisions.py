@@ -90,19 +90,27 @@ def decide(content: list[dict], questions: list[dict]) -> dict[str, dict]:
             resp.text[:200],
         )
         time.sleep(1.0)
-    if resp.status_code != 200:
-        logger.error("decisions %s: %s", resp.status_code, resp.text[:400])
-        raise DecisionsUnavailable(f"status {resp.status_code}")
+    if resp is None or resp.status_code != 200:
+        status = resp.status_code if resp is not None else "no response"
+        detail = resp.text[:400] if resp is not None else ""
+        logger.error("decisions %s: %s", status, detail)
+        raise DecisionsUnavailable(f"status {status}")
+    try:
+        payload = resp.json()
+    except ValueError as exc:
+        raise DecisionsUnavailable("invalid response") from exc
     answers = {}
-    for a in resp.json().get("answers", []):
-        answers[a["name"]] = a  # refusals are kept (type "refusal") so callers decide
+    for answer in payload.get("answers", []):
+        if isinstance(answer, dict) and isinstance(answer.get("name"), str):
+            answers[answer["name"]] = answer
     return answers
 
 
 def prob(answers: dict, name: str, default: float = 0.0) -> float:
     a = answers.get(name) or {}
-    return (
-        float(a.get("probability", default))
-        if a.get("type") == "predicate"
-        else default
-    )
+    if a.get("type") != "predicate":
+        return default
+    try:
+        return float(a.get("probability", default))
+    except (TypeError, ValueError):
+        return default
