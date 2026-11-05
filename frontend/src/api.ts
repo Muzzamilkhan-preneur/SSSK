@@ -66,7 +66,7 @@ export const api = {
 
   geocode: (lat: number, lng: number) => get<{ address: string }>(`/api/geocode?lat=${lat}&lng=${lng}`),
 
-  createReport: (input: { file: LocalFile; lat: number; lng: number; citizenId: string; citizenName: string; description: string }) =>
+  createReport: (input: { file: LocalFile; lat: number; lng: number; citizenId: string; citizenName: string; description: string; analysis?: AiAnalysis | null }) =>
     upload<{ merged: boolean; report: Report }>("/api/reports", {
       files: { image: input.file },
       fields: {
@@ -75,6 +75,7 @@ export const api = {
         citizen_id: input.citizenId,
         citizen_name: input.citizenName,
         description: input.description,
+        analysis: input.analysis ? JSON.stringify(input.analysis) : "",
       },
     }),
 

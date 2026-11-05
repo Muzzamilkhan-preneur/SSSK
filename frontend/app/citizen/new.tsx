@@ -69,7 +69,7 @@ export default function NewReport() {
   const submit = useMutation({
     mutationFn: async () => {
       if (!photo || !coords || !session?.citizen_id) throw new Error("Missing report details");
-      return api.createReport({ file: photo, lat: coords.lat, lng: coords.lng, citizenId: session.citizen_id, citizenName: session.name, description: desc });
+      return api.createReport({ file: photo, lat: coords.lat, lng: coords.lng, citizenId: session.citizen_id, citizenName: session.name, description: desc, analysis });
     },
     onSuccess: async ({ merged, report }) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});

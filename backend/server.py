@@ -1,5 +1,6 @@
 ﻿import asyncio
 import hashlib
+import json
 import logging
 import math
 import os
@@ -821,6 +822,7 @@ async def create_report(
     citizen_id: str = Form(...),
     citizen_name: str = Form(...),
     description: str = Form(""),
+    analysis: str = Form(""),
 ):
     data = await image.read()
     if not data:
@@ -831,11 +833,18 @@ async def create_report(
 
     now = utcnow()
     mime = image.content_type or "image/jpeg"
-    # Road-damage check first, so neither a merge nor a new report accepts a non-road photo.
+    # Reuse the completed inspection from the previous screen. This avoids
+    # sending the same image to OpenAI twice during one report flow.
     try:
-        a = await run_in_threadpool(analyze_road_image, data, mime)
-    except DecisionsUnavailable as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
+        a = json.loads(analysis) if analysis else None
+    except json.JSONDecodeError:
+        a = None
+    required = {"is_road_damage", "severity", "severity_score", "severity_confidence", "damage_type", "findings", "needs_review"}
+    if not isinstance(a, dict) or not required.issubset(a):
+        try:
+            a = await run_in_threadpool(analyze_road_image, data, mime)
+        except DecisionsUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc))
     if not a["is_road_damage"]:
         raise HTTPException(
             status_code=422,
