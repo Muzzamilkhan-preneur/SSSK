@@ -255,15 +255,31 @@ def analyze_road_image(data: bytes, mime: str) -> dict:
 
     sev = a.get("severity") or {}
     if sev.get("type") != "score":
-        raise DecisionsUnavailable("severity refused")
-    probs = sorted(sev.get("probabilities", []), key=lambda p: p["value"])
-    top = max(probs, key=lambda p: p["probability"])
-    sev_key = SEVERITY_LEVELS[int(top["value"])][0]
-    sev_conf = float(top["probability"])
+        raise DecisionsUnavailable("AI_INVALID_RESPONSE")
+    probabilities = []
+    for item in sev.get("probabilities", []):
+        try:
+            value = int(item["value"])
+            probability = float(item["probability"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if 0 <= value < len(SEVERITY_LEVELS) and 0 <= probability <= 1:
+            probabilities.append((value, probability))
+    if not probabilities:
+        raise DecisionsUnavailable("AI_INVALID_RESPONSE")
+    top_value, sev_conf = max(probabilities, key=lambda item: item[1])
+    sev_key = SEVERITY_LEVELS[top_value][0]
 
     dt = a.get("damage_type") or {}
     dt_value = dt.get("choice") if dt.get("type") == "choice" else "other"
-    dt_conf = float(dt.get("confidence", 0)) if dt.get("type") == "choice" else 0.0
+    try:
+        dt_conf = (
+            max(0.0, min(1.0, float(dt.get("confidence", 0))))
+            if dt.get("type") == "choice"
+            else 0.0
+        )
+    except (TypeError, ValueError):
+        dt_conf = 0.0
 
     findings = [
         {
@@ -281,7 +297,15 @@ def analyze_road_image(data: bytes, mime: str) -> dict:
         {
             "severity": sev_key,
             "severity_score": round(
-                float(sev.get("score", 0)) / (len(SEVERITY_LEVELS) - 1), 3
+                max(
+                    0.0,
+                    min(
+                        1.0,
+                        float(sev.get("score", top_value))
+                        / (len(SEVERITY_LEVELS) - 1),
+                    ),
+                ),
+                3,
             ),
             "severity_confidence": round(sev_conf, 3),
             "damage_type": dt_value,
@@ -814,6 +838,9 @@ async def analyze_pothole(image: UploadFile = File(...)):
         )
     except DecisionsUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc))
+    except Exception:
+        logger.exception("pothole analysis failed unexpectedly")
+        raise HTTPException(status_code=503, detail="AI_INVALID_RESPONSE")
     return {**result, "duplicate_photo": False}
 
 
