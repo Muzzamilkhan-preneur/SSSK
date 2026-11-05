@@ -3,7 +3,7 @@
 Saaf Sarak is a mobile app with a backend: **FastAPI with Firestore and Supabase Storage**
 behind an **Expo + expo-router** app in strict TypeScript. The app runs as a
 web preview in the browser, in Expo Go on a phone, and as a native build.
-Nothing app-specific is built yet; it is a skeleton to build on.
+The citizen, Mayor, and contractor report lifecycle is implemented end to end.
 
 Versions are not written down here. Every package is at whatever
 `package.json` pins; open that file only when a version actually matters.
@@ -14,8 +14,7 @@ Versions are not written down here. Every package is at whatever
 expo/
   backend/   FastAPI + Firebase Admin (Firestore) + Supabase Storage + Pydantic v2
   frontend/  Expo + expo-router (file-based routes under app/)
-  memory/    test_credentials.md — logins the testing subagent reads
-  tests/     backend pytest package
+  tests/     optional backend pytest package
 ```
 
 ## Running
@@ -49,9 +48,9 @@ store. Never commit them. The mobile app only needs the public
 ## How the app reaches the backend
 
 Every backend route lives under `/api`, because the backend mounts one
-`APIRouter(prefix="/api")`. The public preview URL sits in front of both
-servers: `/api/*` is forwarded to the backend on `8001`, everything else to
-Metro on `3000`.
+`APIRouter(prefix="/api")`. During local development, the frontend and backend run on separate ports.
+In production, the frontend calls the Render backend directly through
+`EXPO_PUBLIC_BACKEND_URL`.
 
 The app reads that URL from `EXPO_PUBLIC_BACKEND_URL` in its `.env` (filled in
 by the platform) and calls `EXPO_PUBLIC_BACKEND_URL + "/api/..."`. The URL has
@@ -68,7 +67,8 @@ dependencies come from `backend/requirements.txt`.
 
 - **Entry point.** `backend/server.py` creates `app`, creates
   `api_router = APIRouter(prefix="/api")`, registers routes **on the router**,
-  then calls `app.include_router(api_router)`. CORS is open. Never attach a
+  then calls `app.include_router(api_router)`. CORS allows the local web preview
+  and deployed frontend origins. Never attach a
   route to `app` directly; it lands outside `/api` and the phone cannot reach
   it.
 - **The route pattern.** Copy the `status` route: a Pydantic model for the
