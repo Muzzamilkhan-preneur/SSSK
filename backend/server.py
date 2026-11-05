@@ -920,7 +920,7 @@ async def create_report(
     except Exception as exc:
         logger.exception("report image archival failed")
         raise HTTPException(
-            status_code=503, detail="Report image storage is temporarily unavailable"
+            status_code=503, detail=f"Report image storage failed: {exc}"
         ) from exc
     address = await run_in_threadpool(reverse_geocode, lat, lng)
     report = Report(
