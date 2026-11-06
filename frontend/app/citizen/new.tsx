@@ -3,7 +3,7 @@ import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -21,9 +21,10 @@ import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { ScreenHeader } from "@/src/components/ScreenHeader";
 import { KARACHI_CENTER } from "@/src/components/status-meta";
 import { useSession } from "@/src/session";
+import { isRecoverableSyncError, queueReport } from "@/src/offline-reports";
 import { ensureLocationPermission } from "@/src/utils/permissions";
 import { fonts, makeStyles, radius, spacing, useTheme, withAlpha } from "@/src/theme";
-import type { AiAnalysis } from "@/src/types";
+import type { AiAnalysis, Report } from "@/src/types";
 import type { LocalFile } from "@/src/utils/upload";
 
 const STEPS = [
@@ -43,14 +44,15 @@ export default function NewReport() {
   const [step, setStep] = useState<"photo" | "location">("photo");
   const [photo, setPhoto] = useState<LocalFile | null>(null);
   const [analysis, setAnalysis] = useState<AiAnalysis | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const analysisRequest = useRef(0);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [address, setAddress] = useState<string | null>(null);
   const [addrLoading, setAddrLoading] = useState(false);
   const [locBlocked, setLocBlocked] = useState(false);
   const [desc, setDesc] = useState("");
   const [submitErr, setSubmitErr] = useState<string | null>(null);
-
-  const analyze = useMutation({ mutationFn: (file: LocalFile) => api.analyzePothole(file), onSuccess: setAnalysis });
 
   // Live address as the pin moves (debounced).
   useEffect(() => {
@@ -67,23 +69,51 @@ export default function NewReport() {
   }, [coords]);
 
   const submit = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<{ queued: true } | { queued: false; merged: boolean; report: Report }> => {
       if (!photo || !coords || !session?.citizen_id) throw new Error("Missing report details");
-      return api.createReport({ file: photo, lat: coords.lat, lng: coords.lng, citizenId: session.citizen_id, citizenName: session.name, description: desc, analysis });
+      const offlineInput = { photo, lat: coords.lat, lng: coords.lng, citizenId: session.citizen_id, citizenName: session.name, description: desc };
+      if (!analysis) {
+        await queueReport(offlineInput);
+        return { queued: true };
+      }
+      try {
+        const result = await api.createReport({ file: photo, lat: coords.lat, lng: coords.lng, citizenId: session.citizen_id, citizenName: session.name, description: desc, analysis });
+        return { queued: false, ...result };
+      } catch (error) {
+        if (!isRecoverableSyncError(error)) throw error;
+        await queueReport(offlineInput);
+        return { queued: true };
+      }
     },
-    onSuccess: async ({ merged, report }) => {
+    onSuccess: async (result) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      if (result.queued) {
+        router.replace("/citizen/tabs/reports");
+        return;
+      }
       await queryClient.invalidateQueries({ queryKey: ["reports"] });
       await queryClient.invalidateQueries({ queryKey: qk.stats });
-      router.replace({ pathname: "/citizen/report/[id]", params: { id: report.id, ...(merged ? { merged: "1" } : {}) } });
+      router.replace({ pathname: "/citizen/report/[id]", params: { id: result.report.id, ...(result.merged ? { merged: "1" } : {}) } });
     },
     onError: (e) => setSubmitErr(e.message || "Could not submit report"),
   });
 
-  const onPicked = (file: LocalFile) => {
+  const onPicked = async (file: LocalFile) => {
+    const requestId = ++analysisRequest.current;
     setPhoto(file);
     setAnalysis(null);
-    analyze.mutate(file);
+    setAnalysisError(null);
+    setAnalyzing(true);
+    try {
+      const nextAnalysis = await api.analyzePothole(file);
+      if (requestId === analysisRequest.current) setAnalysis(nextAnalysis);
+    } catch (error) {
+      if (requestId === analysisRequest.current) {
+        setAnalysisError(error instanceof Error ? error.message : "AI inspection is unavailable.");
+      }
+    } finally {
+      if (requestId === analysisRequest.current) setAnalyzing(false);
+    }
   };
 
   const useGps = async () => {
@@ -99,20 +129,19 @@ export default function NewReport() {
     }
   };
 
-  const analyzing = analyze.isPending;
   const blockedReason = analysis?.duplicate_photo
     ? "This photo was already submitted."
     : analysis && !analysis.is_road_damage
       ? "This doesn't look like road damage. Please photograph the pothole."
-      : analyze.isError
-        ? analyze.error.message || "AI check unavailable, try again"
+      : analysisError
+        ? analysisError
         : null;
   const usable = !!analysis && !blockedReason;
   const results: Record<string, boolean> | null = analysis
     ? analysis.duplicate_photo || !analysis.is_road_damage
       ? { road: false }
       : { road: true, severity: true, findings: true }
-    : analyze.isError
+    : analysisError
       ? { road: false }
       : null;
 
@@ -159,11 +188,19 @@ export default function NewReport() {
               </View>
             ) : null}
 
+            {analysisError && !analyzing ? (
+              <Card>
+                <Kicker icon="cloud-offline">Offline capture</Kicker>
+                <Text style={styles.body}>Your photo can be saved on this phone now. AI inspection and submission will run automatically when the service is reachable again.</Text>
+                <PrimaryButton title="Continue Offline" icon="cloud-upload" testID="continue-offline-btn" onPress={() => setStep("location")} />
+              </Card>
+            ) : null}
+
             {usable && analysis ? (
               <>
                 <InspectionCard severity={analysis.severity} findings={analysis.findings ?? []} />
                 <PrimaryButton title="Confirm Location" icon="arrow-forward" testID="confirm-location-btn" onPress={() => setStep("location")} />
-                <PrimaryButton title="Use a different photo" variant="ghost" small testID="change-photo-btn" onPress={() => { setPhoto(null); setAnalysis(null); analyze.reset(); }} />
+                <PrimaryButton title="Use a different photo" variant="ghost" small testID="change-photo-btn" onPress={() => { analysisRequest.current += 1; setPhoto(null); setAnalysis(null); setAnalysisError(null); }} />
               </>
             ) : null}
 
@@ -171,7 +208,14 @@ export default function NewReport() {
           </Animated.View>
         ) : (
           <Animated.View key="location" entering={SlideInRight.duration(220)} style={styles.gap}>
-            <AppMap lat={coords?.lat ?? KARACHI_CENTER.lat} lng={coords?.lng ?? KARACHI_CENTER.lng} pickable height={280} onSelect={(lat, lng) => setCoords({ lat, lng })} testID="location-map" />
+            {analysis ? (
+              <AppMap lat={coords?.lat ?? KARACHI_CENTER.lat} lng={coords?.lng ?? KARACHI_CENTER.lng} pickable height={280} onSelect={(lat, lng) => setCoords({ lat, lng })} testID="location-map" />
+            ) : (
+              <Card>
+                <Kicker icon="navigate">Offline location</Kicker>
+                <Text style={styles.body}>GPS can locate your phone without mobile data. Map tiles and the street name will be added when the report synchronizes.</Text>
+              </Card>
+            )}
             <View style={styles.addressRow} testID="pin-address">
               <Ionicons name="location" size={18} color={coords ? colors.brandPrimary : colors.muted} />
               <View style={{ flex: 1 }}>
@@ -201,7 +245,7 @@ export default function NewReport() {
         <KeyboardStickyView>
           <View style={[styles.sticky, { paddingBottom: insets.bottom + spacing.md }]}>
             {submitErr ? <Text style={styles.submitErr} testID="submit-error">{submitErr}</Text> : null}
-            <PrimaryButton title="Submit Report" icon="send" testID="report-submit-btn" loading={submit.isPending} disabled={!coords} onPress={() => { setSubmitErr(null); submit.mutate(); }} />
+            <PrimaryButton title={analysis ? "Submit Report" : "Save Offline Report"} icon={analysis ? "send" : "cloud-upload"} testID="report-submit-btn" loading={submit.isPending} disabled={!coords} onPress={() => { setSubmitErr(null); submit.mutate(); }} />
           </View>
         </KeyboardStickyView>
       ) : null}

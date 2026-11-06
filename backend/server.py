@@ -38,7 +38,7 @@ from decisions import (
 db = FirestoreDatabase()
 SEED_VERSION = "v3"
 SEED_DIR = ROOT_DIR / "seed_images"
-MERGE_RADIUS_M = 25
+MERGE_RADIUS_M = 12
 OPEN_STATUSES = ["pending_review", "assigned", "in_progress", "rework"]
 AI_UNAVAILABLE = "AI check unavailable, try again"
 logger = logging.getLogger(__name__)
@@ -115,6 +115,7 @@ class Report(BaseDocument):
     image_path: str
     image_hash: Optional[str] = None
     extra_hashes: List[str] = Field(default_factory=list)
+    extra_image_paths: List[str] = Field(default_factory=list)
     after_image_path: Optional[str] = None
     lat: float
     lng: float
@@ -184,6 +185,7 @@ SEVERITY_LEVELS = [
         "A very deep or large crater, collapsed road, open or broken manhole, or damage across most of the lane. Serious accident risk for two-wheelers and cars.",
     ),
 ]
+SEVERITY_RANK = {key: index for index, (key, _, _) in enumerate(SEVERITY_LEVELS)}
 DAMAGE_TYPES = [
     ("pothole", "A bowl-shaped hole where the road surface has broken away."),
     ("cracking", "Cracks or alligator cracking without a real hole."),
@@ -902,15 +904,38 @@ async def create_report(
             detail="This doesn't look like road damage. Please photograph the pothole.",
         )
 
-    # Merge into an open report within MERGE_RADIUS_M.
+    # Preserve the submitted evidence before considering a duplicate merge.
+    try:
+        path = (
+            await run_in_threadpool(
+                put_object,
+                f"{APP_NAME}/uploads/{citizen_id}/{uuid.uuid4()}.{_ext(image.filename)}",
+                data,
+                mime,
+            )
+        )["path"]
+    except Exception as exc:
+        logger.exception("report image archival failed")
+        raise HTTPException(
+            status_code=503, detail=f"Report image storage failed: {exc}"
+        ) from exc
+
+    # Merge only closely co-located reports with the same damage type and a
+    # comparable severity. A nearby but distinct defect needs its own record.
     open_docs = await db.reports.find({"status": {"$in": OPEN_STATUSES}}).to_list(1000)
     nearby = sorted(
-        ((haversine_m(lat, lng, d["lat"], d["lng"]), d) for d in open_docs),
+        (
+            (haversine_m(lat, lng, d["lat"], d["lng"]), d)
+            for d in open_docs
+            if d.get("damage_type") == a["damage_type"]
+            and abs(SEVERITY_RANK.get(d.get("severity"), 0) - SEVERITY_RANK[a["severity"]]) <= 1
+        ),
         key=lambda t: t[0],
     )
     if nearby and nearby[0][0] <= MERGE_RADIUS_M:
         existing = Report.from_firestore(nearby[0][1])
         existing.extra_hashes.append(image_hash)
+        existing.extra_image_paths.append(path)
         if not any(r.citizen_id == citizen_id for r in existing.reporters):
             existing.reporters.append(
                 Reporter(citizen_id=citizen_id, name=citizen_name, at=now)
@@ -929,20 +954,6 @@ async def create_report(
         await save_report(existing)
         return {"merged": True, "report": existing.model_dump()}
 
-    try:
-        path = (
-            await run_in_threadpool(
-                put_object,
-                f"{APP_NAME}/uploads/{citizen_id}/{uuid.uuid4()}.{_ext(image.filename)}",
-                data,
-                mime,
-            )
-        )["path"]
-    except Exception as exc:
-        logger.exception("report image archival failed")
-        raise HTTPException(
-            status_code=503, detail=f"Report image storage failed: {exc}"
-        ) from exc
     address = await run_in_threadpool(reverse_geocode, lat, lng)
     report = Report(
         citizen_id=citizen_id,
@@ -1203,7 +1214,10 @@ logging.basicConfig(
 @app.on_event("startup")
 async def startup():
     app.state.index_task = asyncio.create_task(ensure_indexes())
-    app.state.seed_task = asyncio.create_task(seed_demo_data())
+    if os.environ.get("DEMO_SEED", "").lower() == "true":
+        app.state.seed_task = asyncio.create_task(seed_demo_data())
+    else:
+        app.state.seed_task = None
 
 
 @app.on_event("shutdown")
@@ -1211,4 +1225,8 @@ async def shutdown_db_client():
     app.state.index_task.cancel()
     with suppress(asyncio.CancelledError):
         await app.state.index_task
+    if app.state.seed_task:
+        app.state.seed_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await app.state.seed_task
     await db.close()

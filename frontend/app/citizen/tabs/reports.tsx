@@ -1,7 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
-import { FlatList, Pressable, RefreshControl, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
@@ -15,6 +15,7 @@ import { SkeletonList } from "@/src/components/SkeletonList";
 import { STATUS_FILTERS } from "@/src/components/status-meta";
 import { usesNativeTabs } from "@/src/navigation";
 import { useSession } from "@/src/session";
+import { getQueuedReports, syncQueuedReports } from "@/src/offline-reports";
 import { makeStyles, radius, spacing, useTheme } from "@/src/theme";
 
 export default function CitizenReports() {
@@ -24,7 +25,10 @@ export default function CitizenReports() {
   const insets = useSafeAreaInsets();
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
   const session = useSession();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
+  const [queuedCount, setQueuedCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: qk.reports(`citizen-${session?.citizen_id}`),
@@ -37,6 +41,22 @@ export default function CitizenReports() {
     return (data ?? []).filter((r) => !statuses || statuses.includes(r.status));
   }, [data, filter]);
 
+  const syncPending = async () => {
+    setSyncing(true);
+    try {
+      const result = await syncQueuedReports();
+      setQueuedCount(result.remaining);
+      if (result.synced) await queryClient.invalidateQueries({ queryKey: ["reports"] });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    getQueuedReports().then((queued) => setQueuedCount(queued.length));
+    void syncPending();
+  }, [session?.citizen_id]);
+
   return (
     <View style={styles.screen}>
       <ScreenHeader
@@ -45,6 +65,13 @@ export default function CitizenReports() {
         right={<RoleSwitchButton />}
         bottom={<FilterChipRowInteractive options={STATUS_FILTERS} value={filter} onChange={setFilter} />}
       />
+      {queuedCount ? (
+        <View style={styles.queued} testID="offline-reports-banner">
+          <Ionicons name="cloud-upload" size={18} color={colors.onSurfaceSecondary} />
+          <Text style={styles.queuedText}>{queuedCount} report{queuedCount === 1 ? "" : "s"} saved on this phone. {syncing ? "Trying to sync…" : "They will submit when online."}</Text>
+          {!syncing ? <Pressable onPress={() => void syncPending()}><Text style={styles.syncText}>Sync now</Text></Pressable> : null}
+        </View>
+      ) : null}
       {isLoading || !session ? (
         <SkeletonList />
       ) : (
@@ -63,7 +90,7 @@ export default function CitizenReports() {
               testID="citizen-reports-empty"
             />
           }
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { refetch(); }} tintColor={colors.brandPrimary} />}
+          refreshControl={<RefreshControl refreshing={isRefetching || syncing} onRefresh={() => { refetch(); void syncPending(); }} tintColor={colors.brandPrimary} />}
         />
       )}
       <Pressable testID="new-report-fab" onPress={() => router.push("/citizen/new")} style={({ pressed }) => [styles.fab, { bottom: bottomChrome + 16 }, pressed && styles.fabPressed]}>
@@ -75,6 +102,9 @@ export default function CitizenReports() {
 
 const useStyles = makeStyles((colors) => ({
   screen: { flex: 1, backgroundColor: colors.surface },
+  queued: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginHorizontal: spacing.xl, marginTop: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surfaceSecondary },
+  queuedText: { flex: 1, fontSize: 12.5, color: colors.onSurfaceSecondary },
+  syncText: { fontSize: 12.5, color: colors.brandPrimary },
   fab: { position: "absolute", right: spacing.xl, width: 56, height: 56, borderRadius: radius.md, backgroundColor: colors.brandPrimary, alignItems: "center", justifyContent: "center", shadowColor: colors.surfaceInverse, shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   fabPressed: { backgroundColor: colors.onBrandTertiary },
 }));
