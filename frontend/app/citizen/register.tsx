@@ -36,7 +36,7 @@ export default function Register() {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const camRef = useRef<CameraView>(null);
-  const [permission, requestPermission] = useCameraPermissions();
+  const [permission, requestPermission, getPermission] = useCameraPermissions();
 
   const [name, setName] = useState("");
   const [phase, setPhase] = useState<Phase>("name");
@@ -46,14 +46,17 @@ export default function Register() {
   const [cameraReady, setCameraReady] = useState(false);
 
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", async (state) => {
+    const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") {
-        const current = await requestPermission();
-        if (current.granted) setPhase((currentPhase) => currentPhase === "camera" ? "camera" : currentPhase);
+        // Refresh permission state after returning from Android's permission UI or Settings.
+        // Requesting here reopens the system dialog on every foreground transition.
+        void getPermission().catch((error) => {
+          console.error("[camera permission status]", error);
+        });
       }
     });
     return () => subscription.remove();
-  }, [requestPermission]);
+  }, [getPermission]);
 
   const runCheck = async (file: LocalFile) => {
     setPhoto(file);
