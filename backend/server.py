@@ -269,11 +269,12 @@ def analyze_road_image(data: bytes, mime: str) -> dict:
         top_value, sev_conf = max(probabilities, key=lambda item: item[1])
     else:
         top_value, sev_conf = 1, 0.0
-    sev_key = SEVERITY_LEVELS[top_value][0]
     try:
-        severity_score = float(sev.get("score", top_value)) / (len(SEVERITY_LEVELS) - 1)
+        model_severity_score = float(sev.get("score", top_value)) / (
+            len(SEVERITY_LEVELS) - 1
+        )
     except (TypeError, ValueError):
-        severity_score = top_value / (len(SEVERITY_LEVELS) - 1)
+        model_severity_score = top_value / (len(SEVERITY_LEVELS) - 1)
 
     dt = a.get("damage_type") or {}
     dt_value = (
@@ -289,6 +290,21 @@ def analyze_road_image(data: bytes, mime: str) -> dict:
         )
     except (TypeError, ValueError):
         dt_conf = 0.0
+
+    # A model's broad severity label can understate specific visible hazards.
+    # Escalate only when its own focused checks provide strong evidence.
+    deep_p = prob(a, "deep")
+    exposed_base_p = prob(a, "exposed_base")
+    wide_p = prob(a, "wide")
+    if dt_value == "broken_manhole" and dt_conf >= 0.6:
+        top_value = max(top_value, 3)
+    elif wide_p >= 0.75 and deep_p >= 0.65:
+        top_value = max(top_value, 3)
+    elif deep_p >= 0.65 or exposed_base_p >= 0.65 or wide_p >= 0.65:
+        top_value = max(top_value, 2)
+
+    sev_key = SEVERITY_LEVELS[top_value][0]
+    severity_score = max(model_severity_score, top_value / (len(SEVERITY_LEVELS) - 1))
 
     findings = [
         {
@@ -309,7 +325,12 @@ def analyze_road_image(data: bytes, mime: str) -> dict:
             "severity_confidence": round(sev_conf, 3),
             "damage_type": dt_value,
             "findings": findings,
-            "needs_review": road_p < 0.75 or sev_conf < 0.5 or dt_conf < 0.45,
+            "needs_review": (
+                road_p < 0.75
+                or sev_conf < 0.5
+                or dt_conf < 0.45
+                or (top_value >= 2 and sev_conf < 0.65)
+            ),
         }
     )
     return result

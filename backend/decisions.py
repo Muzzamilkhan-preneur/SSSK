@@ -66,17 +66,32 @@ def score(name: str, instructions: str, levels: list[tuple[str, str]]) -> dict:
 
 
 def _prompt(questions: list[dict]) -> str:
-    details = "\n".join(
-        f"- {q['name']} ({q['type']}): {q.get('instructions', '')}"
-        for q in questions
-    )
+    formatted_questions = []
+    for q in questions:
+        detail = f"- {q['name']} ({q['type']}): {q.get('instructions', '')}"
+        if q["type"] == "choice":
+            choices = "; ".join(
+                f"{item['value']}: {item['description']}"
+                for item in q.get("choices", [])
+            )
+            detail += f"\n  Allowed choices: {choices}"
+        elif q["type"] == "score":
+            levels = "; ".join(
+                f"{index} = {item['label']}: {item['description']}"
+                for index, item in enumerate(q.get("levels", []))
+            )
+            detail += f"\n  Score levels: {levels}"
+        formatted_questions.append(detail)
+    details = "\n".join(formatted_questions)
     return (
         "Return only valid JSON with the exact question names as keys. "
         "For predicate, return {\"type\":\"predicate\",\"probability\":number}. "
         "For choice, return {\"type\":\"choice\",\"choice\":string,"
         "\"confidence\":number}. For score, return {\"type\":\"score\","
         "\"score\":integer,\"probabilities\":[{\"value\":integer,"
-        "\"probability\":number}]}. Do not include markdown.\n\nQuestions:\n"
+        "\"probability\":number}]}. For score questions, use the numbered "
+        "levels provided and make probabilities reflect the visible evidence. "
+        "Do not include markdown.\n\nQuestions:\n"
         + details
     )
 
@@ -138,7 +153,7 @@ def decide(content: list[dict], questions: list[dict]) -> dict[str, dict]:
             message_content.append(
                 {
                     "type": "image_url",
-                    "image_url": {"url": part["image_url"], "detail": "low"},
+                    "image_url": {"url": part["image_url"], "detail": "high"},
                 }
             )
         elif part.get("type") == "input_text":
