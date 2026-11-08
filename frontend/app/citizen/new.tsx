@@ -21,10 +21,9 @@ import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { ScreenHeader } from "@/src/components/ScreenHeader";
 import { KARACHI_CENTER } from "@/src/components/status-meta";
 import { useSession } from "@/src/session";
-import { isRecoverableSyncError, queueReport } from "@/src/offline-reports";
 import { ensureLocationPermission } from "@/src/utils/permissions";
 import { fonts, makeStyles, radius, spacing, useTheme, withAlpha } from "@/src/theme";
-import type { AiAnalysis, Report } from "@/src/types";
+import type { AiAnalysis } from "@/src/types";
 import type { LocalFile } from "@/src/utils/upload";
 
 const STEPS = [
@@ -69,31 +68,15 @@ export default function NewReport() {
   }, [coords]);
 
   const submit = useMutation({
-    mutationFn: async (): Promise<{ queued: true } | { queued: false; merged: boolean; report: Report }> => {
+    mutationFn: async () => {
       if (!photo || !coords || !session?.citizen_id) throw new Error("Missing report details");
-      const offlineInput = { photo, lat: coords.lat, lng: coords.lng, citizenId: session.citizen_id, citizenName: session.name, description: desc };
-      if (!analysis) {
-        await queueReport(offlineInput);
-        return { queued: true };
-      }
-      try {
-        const result = await api.createReport({ file: photo, lat: coords.lat, lng: coords.lng, citizenId: session.citizen_id, citizenName: session.name, description: desc, analysis });
-        return { queued: false, ...result };
-      } catch (error) {
-        if (!isRecoverableSyncError(error)) throw error;
-        await queueReport(offlineInput);
-        return { queued: true };
-      }
+      return api.createReport({ file: photo, lat: coords.lat, lng: coords.lng, citizenId: session.citizen_id, citizenName: session.name, description: desc, analysis });
     },
-    onSuccess: async (result) => {
+    onSuccess: async ({ merged, report }) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      if (result.queued) {
-        router.replace("/citizen/tabs/reports");
-        return;
-      }
       await queryClient.invalidateQueries({ queryKey: ["reports"] });
       await queryClient.invalidateQueries({ queryKey: qk.stats });
-      router.replace({ pathname: "/citizen/report/[id]", params: { id: result.report.id, ...(result.merged ? { merged: "1" } : {}) } });
+      router.replace({ pathname: "/citizen/report/[id]", params: { id: report.id, ...(merged ? { merged: "1" } : {}) } });
     },
     onError: (e) => setSubmitErr(e.message || "Could not submit report"),
   });
@@ -188,14 +171,6 @@ export default function NewReport() {
               </View>
             ) : null}
 
-            {analysisError && !analyzing ? (
-              <Card>
-                <Kicker icon="cloud-offline">Offline capture</Kicker>
-                <Text style={styles.body}>Your photo can be saved on this phone now. AI inspection and submission will run automatically when the service is reachable again.</Text>
-                <PrimaryButton title="Continue Offline" icon="cloud-upload" testID="continue-offline-btn" onPress={() => setStep("location")} />
-              </Card>
-            ) : null}
-
             {usable && analysis ? (
               <>
                 <InspectionCard severity={analysis.severity} findings={analysis.findings ?? []} />
@@ -208,14 +183,7 @@ export default function NewReport() {
           </Animated.View>
         ) : (
           <Animated.View key="location" entering={SlideInRight.duration(220)} style={styles.gap}>
-            {analysis ? (
-              <AppMap lat={coords?.lat ?? KARACHI_CENTER.lat} lng={coords?.lng ?? KARACHI_CENTER.lng} pickable height={280} onSelect={(lat, lng) => setCoords({ lat, lng })} testID="location-map" />
-            ) : (
-              <Card>
-                <Kicker icon="navigate">Offline location</Kicker>
-                <Text style={styles.body}>GPS can locate your phone without mobile data. Map tiles and the street name will be added when the report synchronizes.</Text>
-              </Card>
-            )}
+            <AppMap lat={coords?.lat ?? KARACHI_CENTER.lat} lng={coords?.lng ?? KARACHI_CENTER.lng} pickable height={280} onSelect={(lat, lng) => setCoords({ lat, lng })} testID="location-map" />
             <View style={styles.addressRow} testID="pin-address">
               <Ionicons name="location" size={18} color={coords ? colors.brandPrimary : colors.muted} />
               <View style={{ flex: 1 }}>
@@ -245,7 +213,7 @@ export default function NewReport() {
         <KeyboardStickyView>
           <View style={[styles.sticky, { paddingBottom: insets.bottom + spacing.md }]}>
             {submitErr ? <Text style={styles.submitErr} testID="submit-error">{submitErr}</Text> : null}
-            <PrimaryButton title={analysis ? "Submit Report" : "Save Offline Report"} icon={analysis ? "send" : "cloud-upload"} testID="report-submit-btn" loading={submit.isPending} disabled={!coords} onPress={() => { setSubmitErr(null); submit.mutate(); }} />
+            <PrimaryButton title="Submit Report" icon="send" testID="report-submit-btn" loading={submit.isPending} disabled={!coords} onPress={() => { setSubmitErr(null); submit.mutate(); }} />
           </View>
         </KeyboardStickyView>
       ) : null}
