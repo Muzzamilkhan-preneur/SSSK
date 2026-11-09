@@ -53,6 +53,7 @@ export default function ReportDetail() {
           <ReportBody
             report={report}
             communityCount={report.reporter_count}
+            compactTimeline
             communityNotice={
               merged
                 ? already

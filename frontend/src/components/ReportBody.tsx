@@ -8,7 +8,7 @@ import { Kicker } from "@/src/components/Card";
 import { InspectionCard } from "@/src/components/AICards";
 import { SeverityChip } from "@/src/components/SeverityChip";
 import { StatusBadge } from "@/src/components/StatusBadge";
-import { Timeline } from "@/src/components/Timeline";
+import { ProgressTimeline, Timeline } from "@/src/components/Timeline";
 import { fonts, makeStyles, spacing, withAlpha } from "@/src/theme";
 import type { Report } from "@/src/types";
 
@@ -17,12 +17,62 @@ type Props = {
   children?: ReactNode;
   communityCount?: number;
   communityNotice?: string;
+  compactTimeline?: boolean;
   animated?: boolean;
 };
 
-export function ReportBody({ report, children, communityCount, communityNotice, animated = false }: Props) {
+export function ReportBody({
+  report,
+  children,
+  communityCount,
+  communityNotice,
+  compactTimeline = false,
+  animated = false,
+}: Props) {
   const styles = useStyles();
   const reduceMotion = useReducedMotion();
+  const submittedEvent = report.timeline.find((event) => event.label === "Report Submitted");
+  const inspectionEvent = report.timeline.find((event) => event.label === "AI Inspection Complete");
+  const assignmentEvent = report.timeline.find((event) => event.status === "assigned");
+  const repairEvent = report.timeline.find((event) => event.status === "verified");
+  const latestReporter = report.reporters[report.reporters.length - 1];
+  const assignmentComplete = !!report.contractor_id || !!assignmentEvent;
+  const repairComplete = report.status === "verified" || !!repairEvent;
+  const progressEvents = [
+    {
+      label: "Report submitted",
+      at: submittedEvent?.at ?? report.created_at,
+      actor: submittedEvent?.actor ?? report.citizen_name,
+      completed: true,
+    },
+    {
+      label: "AI inspection completed",
+      at: inspectionEvent?.at ?? report.created_at,
+      completed: true,
+    },
+    {
+      label: "Citizens contributed",
+      note: `${report.reporter_count} ${report.reporter_count === 1 ? "contributor" : "contributors"}`,
+      at: latestReporter?.at ?? submittedEvent?.at ?? report.created_at,
+      completed: true,
+    },
+    {
+      label: "Mayor assigns a contractor",
+      note: assignmentComplete && report.contractor_name
+        ? `Assigned to ${report.contractor_name}`
+        : undefined,
+      at: assignmentEvent?.at,
+      actor: assignmentEvent?.actor,
+      completed: assignmentComplete,
+    },
+    {
+      label: "Contractor fixes the pothole",
+      note: report.status === "rework" ? "More repair work is needed" : undefined,
+      at: repairEvent?.at,
+      actor: repairEvent?.actor,
+      completed: repairComplete,
+    },
+  ];
   const entering = (delay = 0) => animated
     ? FadeIn.duration(reduceMotion ? 0 : 240)
       .delay(reduceMotion ? 0 : delay)
@@ -87,8 +137,10 @@ export function ReportBody({ report, children, communityCount, communityNotice, 
         </Animated.View>
       ) : null}
       <Animated.View entering={entering(220)} style={styles.section}>
-        <Kicker icon="time">Timeline</Kicker>
-        <Timeline events={report.timeline} animated={animated} />
+        <Kicker icon="time">{compactTimeline ? "Report progress" : "Timeline"}</Kicker>
+        {compactTimeline
+          ? <ProgressTimeline events={progressEvents} animated={animated} />
+          : <Timeline events={report.timeline} animated={animated} />}
       </Animated.View>
       {children}
     </View>
