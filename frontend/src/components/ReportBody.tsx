@@ -165,31 +165,22 @@ export function ReportBody({
       </Animated.View>
       <Animated.View entering={entering(110)} style={styles.section}>
         <Kicker icon="location">{compactTimeline ? "Location" : "Pinned location"}</Kicker>
-        {compactTimeline ? (
-          <Pressable
-            accessibilityRole="link"
-            onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${report.lat},${report.lng}`)}
-            style={styles.locationLink}
-          >
-            <View style={styles.locationText}>
-              <Text style={styles.address}>{report.address || "Karachi"}</Text>
-              <View style={styles.mapLink}>
-                <Text style={styles.coordinates}>{report.lat.toFixed(5)}, {report.lng.toFixed(5)}</Text>
-                <Text style={styles.mapSeparator}>·</Text>
-                <Ionicons name="map-outline" size={15} color={colors.brandPrimary} />
-                <Text style={styles.mapLinkText}>Open in Maps</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.onSurfaceSecondary} />
-          </Pressable>
-        ) : (
-          <>
+        <Pressable
+          accessibilityRole="link"
+          onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${report.lat},${report.lng}`)}
+          style={styles.locationLink}
+        >
+          <View style={styles.locationText}>
             <Text style={styles.address}>{report.address || "Karachi"}</Text>
-            <Text style={styles.coordinates} onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${report.lat},${report.lng}`)}>
-              {report.lat.toFixed(5)}, {report.lng.toFixed(5)}
-            </Text>
-          </>
-        )}
+            <View style={styles.mapLink}>
+              <Text style={styles.coordinates}>{report.lat.toFixed(5)}, {report.lng.toFixed(5)}</Text>
+              <Text style={styles.mapSeparator}>·</Text>
+              <Ionicons name="map-outline" size={15} color={colors.brandPrimary} />
+              <Text style={styles.mapLinkText}>Open in Maps</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.onSurfaceSecondary} />
+        </Pressable>
       </Animated.View>
       {communityCount !== undefined ? (
         <Animated.View
