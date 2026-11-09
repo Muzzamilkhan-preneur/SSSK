@@ -977,27 +977,6 @@ async def create_report(
                 "report": existing.model_dump(),
             }
 
-        evidence_added = (
-            image_hash != existing.image_hash and image_hash not in existing.extra_hashes
-        )
-        if evidence_added:
-            try:
-                path = (
-                    await run_in_threadpool(
-                        put_object,
-                        f"{APP_NAME}/uploads/{citizen_id}/{uuid.uuid4()}.{_ext(image.filename)}",
-                        data,
-                        mime,
-                    )
-                )["path"]
-            except Exception as exc:
-                logger.exception("report image archival failed")
-                raise HTTPException(
-                    status_code=503, detail=f"Report image storage failed: {exc}"
-                ) from exc
-            existing.extra_hashes.append(image_hash)
-            existing.extra_image_paths.append(path)
-
         existing.reporters.append(
             Reporter(citizen_id=citizen_id, name=citizen_name, at=now)
         )

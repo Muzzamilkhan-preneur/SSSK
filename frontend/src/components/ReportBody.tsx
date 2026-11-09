@@ -116,14 +116,6 @@ export function ReportBody({
           />
         )}
       </Animated.View>
-      {report.extra_image_paths?.length && !compactTimeline ? (
-        <Animated.View entering={entering(30)} style={styles.section} testID="report-additional-evidence">
-          <Kicker icon="images">Additional evidence</Kicker>
-          {report.extra_image_paths.map((path) => (
-            <Image key={path} source={{ uri: fileUrl(path) }} style={styles.hero} contentFit="cover" transition={240} />
-          ))}
-        </Animated.View>
-      ) : null}
       {compactTimeline ? (
         <Modal
           animationType="fade"

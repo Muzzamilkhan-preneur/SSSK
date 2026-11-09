@@ -365,7 +365,7 @@ export default function NewReport() {
                 <Text style={styles.body}>
                   {nearbyMatch.already_reported
                     ? "You already reported this pothole."
-                    : "Is this the same pothole? Yes adds your photo to this report. No creates a new report."}
+                    : "Is this the same pothole? Yes adds you as a contributor; the original photo stays on the report. No creates a separate report."}
                 </Text>
               </Card>
             ) : null}
