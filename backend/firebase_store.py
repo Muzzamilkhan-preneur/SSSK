@@ -46,12 +46,25 @@ class _Cursor:
 
 
 def _get_path(document: dict, path: str):
-    value: Any = document
-    for part in path.split("."):
+    parts = path.split(".")
+
+    def resolve(value: Any, index: int):
+        if index == len(parts):
+            return value
+        if isinstance(value, list):
+            results = []
+            for item in value:
+                result = resolve(item, index)
+                if isinstance(result, list):
+                    results.extend(result)
+                elif result is not None:
+                    results.append(result)
+            return results
         if not isinstance(value, dict):
             return None
-        value = value.get(part)
-    return value
+        return resolve(value.get(parts[index]), index + 1)
+
+    return resolve(document, 0)
 
 
 def _matches(document: dict, query: dict) -> bool:
@@ -62,10 +75,18 @@ def _matches(document: dict, query: dict) -> bool:
             continue
         actual = _get_path(document, key)
         if isinstance(expected, dict):
-            if "$in" in expected and actual not in expected["$in"]:
-                return False
-            if "$eq" in expected and actual != expected["$eq"]:
-                return False
+            if "$in" in expected:
+                if isinstance(actual, list):
+                    if not any(value in expected["$in"] for value in actual):
+                        return False
+                elif actual not in expected["$in"]:
+                    return False
+            if "$eq" in expected:
+                if isinstance(actual, list):
+                    if expected["$eq"] not in actual:
+                        return False
+                elif actual != expected["$eq"]:
+                    return False
         elif isinstance(actual, list):
             if expected not in actual:
                 return False
