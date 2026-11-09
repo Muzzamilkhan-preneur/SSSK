@@ -8,9 +8,9 @@ import Animated, { FadeIn } from "react-native-reanimated";
 
 import { api, qk } from "@/src/api";
 import { BottomSheet } from "@/src/components/BottomSheet";
-import { getSession, homeFor, saveSession } from "@/src/session";
+import { getSavedCitizenProfile, getSession, homeFor, saveSession } from "@/src/session";
 import { fonts, makeStyles, radius, spacing, useTheme } from "@/src/theme";
-import type { Contractor, Role } from "@/src/types";
+import type { Contractor, Role, Session } from "@/src/types";
 
 export default function RolePicker() {
   const { colors } = useTheme();
@@ -18,12 +18,22 @@ export default function RolePicker() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [contractorSheet, setContractorSheet] = useState(false);
+  const [savedCitizen, setSavedCitizen] = useState<Session | null>(null);
+  const [pickerError, setPickerError] = useState<string | null>(null);
 
   useEffect(() => {
     getSession().then((s) => {
       if (s && (s.role !== "citizen" || s.citizen_id)) router.replace(homeFor(s));
     });
   }, [router]);
+
+  useEffect(() => {
+    getSavedCitizenProfile()
+      .then(setSavedCitizen)
+      .catch((error: unknown) => {
+        setPickerError(error instanceof Error ? error.message : "Could not load your saved citizen profile.");
+      });
+  }, []);
 
   const { data: stats } = useQuery({ queryKey: qk.stats, queryFn: api.stats });
   const { data: contractors } = useQuery({ queryKey: qk.contractors, queryFn: api.contractors });
@@ -35,6 +45,23 @@ export default function RolePicker() {
     router.replace(homeFor(session));
   };
 
+  const enterCitizen = async () => {
+    setPickerError(null);
+    try {
+      const profile = savedCitizen ?? await getSavedCitizenProfile();
+      if (!profile) {
+        router.push("/citizen/register");
+        return;
+      }
+      if (!(await saveSession(profile))) {
+        throw new Error("Your citizen profile could not be opened on this device. Please try again.");
+      }
+      router.replace(homeFor(profile));
+    } catch (error) {
+      setPickerError(error instanceof Error ? error.message : "Could not open your citizen profile.");
+    }
+  };
+
   const pending = stats?.by_status?.pending_review ?? 0;
   const activeJobs = stats ? stats.by_status.assigned + stats.by_status.in_progress + stats.by_status.rework : 0;
 
@@ -42,11 +69,13 @@ export default function RolePicker() {
     {
       role: "citizen",
       icon: "person",
-      title: "Citizen",
-      desc: "Register with a selfie, report potholes and follow each one until it is fixed.",
-      badge: "Selfie sign-up",
+      title: savedCitizen ? `Continue as ${savedCitizen.name}` : "Citizen",
+      desc: savedCitizen
+        ? "Return to your verified profile, reports and repair progress."
+        : "Register with a selfie, report potholes and follow each one until it is fixed.",
+      badge: savedCitizen ? "Verified profile saved" : "Selfie sign-up",
       testID: "role-card-citizen",
-      onPress: () => router.push("/citizen/register"),
+      onPress: () => { void enterCitizen(); },
     },
     {
       role: "mayor",
@@ -96,6 +125,7 @@ export default function RolePicker() {
             <Ionicons name="chevron-forward" size={18} color={colors.muted} />
           </Pressable>
         ))}
+        {pickerError ? <Text style={styles.pickerError} testID="role-picker-error">{pickerError}</Text> : null}
       </Animated.View>
 
       <Text style={styles.footerText}>Karachi Municipal Authority · Civic Demo</Text>
@@ -138,6 +168,7 @@ const useStyles = makeStyles((colors) => ({
   cardTitle: { fontFamily: fonts.display, fontSize: 17, color: colors.onSurface },
   cardBadge: { fontFamily: fonts.semibold, fontSize: 11, color: colors.onBrandTertiary },
   cardDesc: { fontFamily: fonts.text, fontSize: 13, lineHeight: 18, color: colors.onSurfaceTertiary },
+  pickerError: { fontFamily: fonts.medium, fontSize: 13, color: colors.error },
   footerText: { fontFamily: fonts.medium, fontSize: 11, letterSpacing: 0.6, color: colors.muted, textTransform: "uppercase", textAlign: "center" },
   contractorList: { gap: spacing.sm },
   contractorRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.lg, backgroundColor: colors.surface },
