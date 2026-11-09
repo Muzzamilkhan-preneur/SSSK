@@ -1,7 +1,9 @@
 import { Image } from "expo-image";
-import { Linking, Text, View } from "react-native";
+import { Linking, Pressable, Text, View } from "react-native";
 import type { ReactNode } from "react";
 import Animated, { FadeIn, ReduceMotion, useReducedMotion } from "react-native-reanimated";
+import Ionicons from "@react-native-vector-icons/ionicons";
+import { useState } from "react";
 
 import { fileUrl } from "@/src/api";
 import { Kicker } from "@/src/components/Card";
@@ -9,7 +11,7 @@ import { InspectionCard } from "@/src/components/AICards";
 import { SeverityChip } from "@/src/components/SeverityChip";
 import { StatusBadge } from "@/src/components/StatusBadge";
 import { ProgressTimeline, Timeline } from "@/src/components/Timeline";
-import { fonts, makeStyles, spacing, withAlpha } from "@/src/theme";
+import { fonts, makeStyles, spacing, useTheme, withAlpha } from "@/src/theme";
 import type { Report } from "@/src/types";
 
 type Props = {
@@ -29,8 +31,10 @@ export function ReportBody({
   compactTimeline = false,
   animated = false,
 }: Props) {
+  const { colors } = useTheme();
   const styles = useStyles();
   const reduceMotion = useReducedMotion();
+  const [showAdditionalEvidence, setShowAdditionalEvidence] = useState(false);
   const submittedEvent = report.timeline.find((event) => event.label === "Report Submitted");
   const inspectionEvent = report.timeline.find((event) => event.label === "AI Inspection Complete");
   const assignmentEvent = report.timeline.find((event) => event.status === "assigned");
@@ -82,9 +86,40 @@ export function ReportBody({
   return (
     <View style={styles.wrap} testID="report-body">
       <Animated.View entering={entering()}>
-        <Image source={{ uri: fileUrl(report.image_path) }} style={styles.hero} contentFit="cover" transition={240} />
+        <Image
+          source={{ uri: fileUrl(report.image_path) }}
+          style={[styles.hero, compactTimeline && styles.citizenHero]}
+          contentFit="cover"
+          transition={240}
+        />
       </Animated.View>
-      {report.extra_image_paths?.length ? (
+      {report.extra_image_paths?.length ? compactTimeline ? (
+        <View testID="report-additional-evidence">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showAdditionalEvidence }}
+            onPress={() => setShowAdditionalEvidence((shown) => !shown)}
+            style={styles.evidenceToggle}
+          >
+            <Text style={styles.evidenceToggleText}>
+              {showAdditionalEvidence ? "Hide" : "View"} {report.extra_image_paths.length} additional{" "}
+              {report.extra_image_paths.length === 1 ? "photo" : "photos"}
+            </Text>
+            <Ionicons
+              name={showAdditionalEvidence ? "chevron-up" : "chevron-down"}
+              size={16}
+              color={colors.brandPrimary}
+            />
+          </Pressable>
+          {showAdditionalEvidence ? (
+            <View style={styles.evidenceList}>
+              {report.extra_image_paths.map((path) => (
+                <Image key={path} source={{ uri: fileUrl(path) }} style={styles.hero} contentFit="cover" transition={240} />
+              ))}
+            </View>
+          ) : null}
+        </View>
+      ) : (
         <Animated.View entering={entering(30)} style={styles.section} testID="report-additional-evidence">
           <Kicker icon="images">Additional evidence</Kicker>
           {report.extra_image_paths.map((path) => (
@@ -102,14 +137,36 @@ export function ReportBody({
         <StatusBadge status={report.status} />
       </Animated.View>
       <Animated.View entering={entering(110)} style={styles.section}>
-        <Kicker icon="location">Pinned location</Kicker>
-        <Text style={styles.address}>{report.address || "Karachi"}</Text>
-        <Text style={styles.coordinates} onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${report.lat},${report.lng}`)}>
-          {report.lat.toFixed(5)}, {report.lng.toFixed(5)}
-        </Text>
+        <Kicker icon="location">{compactTimeline ? "Location" : "Pinned location"}</Kicker>
+        {compactTimeline ? (
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${report.lat},${report.lng}`)}
+            style={styles.locationLink}
+          >
+            <View style={styles.locationText}>
+              <Text style={styles.address}>{report.address || "Karachi"}</Text>
+              <Text style={styles.coordinates}>
+                {report.lat.toFixed(5)}, {report.lng.toFixed(5)}  ·  Open in Maps
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.onSurfaceSecondary} />
+          </Pressable>
+        ) : (
+          <>
+            <Text style={styles.address}>{report.address || "Karachi"}</Text>
+            <Text style={styles.coordinates} onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${report.lat},${report.lng}`)}>
+              {report.lat.toFixed(5)}, {report.lng.toFixed(5)}
+            </Text>
+          </>
+        )}
       </Animated.View>
       {communityCount !== undefined ? (
-        <Animated.View entering={entering(140)} style={styles.section} testID="community-report-count">
+        <Animated.View
+          entering={entering(140)}
+          style={[styles.section, compactTimeline && styles.dividedSection]}
+          testID="community-report-count"
+        >
           <Kicker icon="people">Community support</Kicker>
           <View style={styles.countRow}>
             <Animated.Text
@@ -121,7 +178,9 @@ export function ReportBody({
               {communityCount}
             </Animated.Text>
             <Text style={styles.communityText}>
-              {communityCount === 1 ? "contributor" : "contributors"} on this report
+              {communityCount === 1
+                ? "citizen profile has reported this issue"
+                : "citizen profiles have reported this issue"}
             </Text>
           </View>
           {communityNotice ? <Text style={styles.notice}>{communityNotice}</Text> : null}
@@ -137,7 +196,7 @@ export function ReportBody({
         </Animated.View>
       ) : null}
       <Animated.View entering={entering(220)} style={styles.section}>
-        <Kicker icon="time">{compactTimeline ? "Report progress" : "Timeline"}</Kicker>
+        <Kicker icon="time">{compactTimeline ? "Report activity" : "Timeline"}</Kicker>
         {compactTimeline
           ? <ProgressTimeline events={progressEvents} animated={animated} />
           : <Timeline events={report.timeline} animated={animated} />}
@@ -150,17 +209,23 @@ export function ReportBody({
 const useStyles = makeStyles((colors) => ({
   wrap: { gap: spacing.lg },
   hero: { width: "100%", aspectRatio: 4 / 3, borderRadius: 16, backgroundColor: colors.surfaceTertiary },
+  citizenHero: { aspectRatio: 1.9 },
   meta: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   section: {
     gap: spacing.sm,
     paddingVertical: spacing.xs,
+  },
+  dividedSection: {
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    paddingTop: spacing.md,
   },
   address: { fontFamily: fonts.semibold, fontSize: 15, color: colors.onSurface },
   coordinates: { marginTop: spacing.xs, fontFamily: fonts.text, fontSize: 12, color: colors.brandPrimary },
   body: { fontFamily: fonts.text, fontSize: 14, lineHeight: 20, color: colors.onSurfaceSecondary },
   countRow: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
   count: { fontFamily: fonts.bold, fontSize: 22, color: colors.onSurface },
-  communityText: { flex: 1, fontFamily: fonts.text, fontSize: 13, lineHeight: 19, color: colors.onSurfaceSecondary },
+  communityText: { flex: 1, fontFamily: fonts.text, fontSize: 15, lineHeight: 21, color: colors.onSurface },
   notice: {
     fontFamily: fonts.medium,
     fontSize: 12,
@@ -171,4 +236,19 @@ const useStyles = makeStyles((colors) => ({
     borderRadius: 6,
     alignSelf: "flex-start",
   },
+  locationLink: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  locationText: { flex: 1, gap: spacing.xs },
+  evidenceToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  evidenceToggleText: {
+    color: colors.brandPrimary,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+  },
+  evidenceList: { gap: spacing.md, paddingTop: spacing.sm },
 }));

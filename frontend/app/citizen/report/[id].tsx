@@ -47,7 +47,11 @@ export default function ReportDetail() {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader title="Report" subtitle={new Date(report.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} onBack={back} />
+      <ScreenHeader
+        title="Report Details"
+        subtitle={`${new Date(report.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} · Report #R-${report.id.slice(0, 5).toUpperCase()}`}
+        onBack={back}
+      />
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: insets.bottom + spacing.xl, gap: spacing.lg }}>
         <Animated.View entering={FadeIn.duration(reduceMotion ? 0 : 240).reduceMotion(ReduceMotion.System)}>
           <ReportBody
