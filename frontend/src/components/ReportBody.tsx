@@ -64,7 +64,9 @@ export function ReportBody({
       label: "Mayor assigns a contractor",
       note: assignmentComplete && report.contractor_name
         ? `Assigned to ${report.contractor_name}`
-        : undefined,
+        : report.status === "pending_review"
+          ? "Awaiting Mayor review"
+          : undefined,
       at: assignmentEvent?.at,
       actor: assignmentEvent?.actor,
       completed: assignmentComplete,
@@ -196,10 +198,14 @@ export function ReportBody({
         </Animated.View>
       ) : null}
       <Animated.View entering={entering(220)} style={styles.section}>
-        <Kicker icon="time">{compactTimeline ? "Report activity" : "Timeline"}</Kicker>
         {compactTimeline
           ? <ProgressTimeline events={progressEvents} animated={animated} />
-          : <Timeline events={report.timeline} animated={animated} />}
+          : (
+            <>
+              <Kicker icon="time">Timeline</Kicker>
+              <Timeline events={report.timeline} animated={animated} />
+            </>
+          )}
       </Animated.View>
       {children}
     </View>

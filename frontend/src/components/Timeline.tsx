@@ -4,6 +4,7 @@ import Animated, { FadeIn, FadeInDown, LinearTransition, ReduceMotion, StretchIn
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { useState } from "react";
 
+import { Kicker } from "@/src/components/Card";
 import { statusMeta } from "@/src/components/status-meta";
 import { fonts, makeStyles, spacing, useTheme, withAlpha } from "@/src/theme";
 import type { ReportStatus, TimelineEvent } from "@/src/types";
@@ -27,13 +28,7 @@ export function ProgressTimeline({
   const styles = useStyles();
   const reduceMotion = useReducedMotion();
   const [expanded, setExpanded] = useState(false);
-  const completedCount = events.filter((event) => event.completed).length;
-  const nextEvent = events.find((event) => !event.completed);
-  const completedSummary = events
-    .filter((event) => event.completed)
-    .map((event) => event.note ? `${event.label}: ${event.note}` : event.label)
-    .slice(0, 3)
-    .join(" · ");
+  const visibleEvents = expanded ? events : events.slice(0, 3);
 
   return (
     <View testID="report-progress-timeline">
@@ -41,90 +36,74 @@ export function ProgressTimeline({
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         onPress={() => setExpanded((value) => !value)}
-        style={styles.summary}
+        style={styles.progressHeader}
         testID="report-timeline-toggle"
       >
-        <View style={styles.summaryText}>
-          <Text style={styles.summaryTitle}>
-            {completedCount === events.length ? "All steps complete" : `${completedCount} of ${events.length} steps complete`}
-          </Text>
-          <Text style={styles.summaryDetail} numberOfLines={2}>
-            {completedSummary}
-          </Text>
-          {nextEvent ? (
-            <Text style={styles.summaryNext} numberOfLines={1}>
-              Next: {nextEvent.label}
-            </Text>
-          ) : null}
-        </View>
+        <Kicker icon="time">Report activity</Kicker>
         <Ionicons
           name={expanded ? "chevron-up" : "chevron-down"}
           size={20}
           color={colors.onSurfaceSecondary}
         />
       </Pressable>
-      {expanded ? (
-        <View style={styles.progressList} testID="report-timeline-details">
-          {events.map((event, index) => {
-            const color = event.completed ? colors.info : colors.muted;
-            return (
-              <Animated.View
-                key={`${index}-${event.label}`}
-                entering={animated
-                  ? FadeInDown.duration(reduceMotion ? 0 : 180)
-                    .delay(reduceMotion ? 0 : Math.min(index, 4) * 35)
-                    .reduceMotion(ReduceMotion.System)
-                  : undefined}
-                layout={animated ? LinearTransition.duration(180).reduceMotion(ReduceMotion.System) : undefined}
-                style={styles.row}
-              >
-                <View style={styles.rail}>
-                  <View
+      <View style={styles.progressList} testID="report-timeline-details">
+        {visibleEvents.map((event, index) => {
+          const color = event.completed ? colors.success : colors.muted;
+          return (
+            <Animated.View
+              key={`${index}-${event.label}`}
+              entering={animated
+                ? FadeInDown.duration(reduceMotion ? 0 : 180)
+                  .delay(reduceMotion ? 0 : Math.min(index, 4) * 35)
+                  .reduceMotion(ReduceMotion.System)
+                : undefined}
+              layout={animated ? LinearTransition.duration(180).reduceMotion(ReduceMotion.System) : undefined}
+              style={styles.progressRow}
+            >
+              <View style={styles.progressRail}>
+                <View
+                  style={[
+                    styles.progressDot,
+                    {
+                      backgroundColor: event.completed ? color : colors.surface,
+                      borderColor: color,
+                    },
+                  ]}
+                >
+                  {event.completed ? (
+                    <Ionicons name="checkmark" size={15} color={colors.onSuccess} />
+                  ) : null}
+                </View>
+                {index < visibleEvents.length - 1 ? (
+                  <Animated.View
+                    entering={animated
+                      ? StretchInY.duration(reduceMotion ? 0 : 180)
+                        .delay(reduceMotion ? 0 : Math.min(index, 4) * 35 + 50)
+                        .reduceMotion(ReduceMotion.System)
+                      : undefined}
                     style={[
-                      styles.dot,
-                      {
-                        backgroundColor: event.completed ? withAlpha(color, 0.14) : colors.surface,
-                        borderColor: color,
-                      },
+                      styles.progressLine,
+                      { backgroundColor: visibleEvents[index + 1].completed ? colors.success : colors.divider },
                     ]}
-                  >
-                    <Ionicons
-                      name={event.completed ? "checkmark" : "ellipse-outline"}
-                      size={event.completed ? 12 : 10}
-                      color={color}
-                    />
-                  </View>
-                  {index < events.length - 1 ? (
-                    <Animated.View
-                      entering={animated
-                        ? StretchInY.duration(reduceMotion ? 0 : 180)
-                          .delay(reduceMotion ? 0 : Math.min(index, 4) * 35 + 50)
-                          .reduceMotion(ReduceMotion.System)
-                        : undefined}
-                      style={[
-                        styles.line,
-                        { backgroundColor: events[index + 1].completed ? colors.info : colors.divider },
-                      ]}
-                    />
-                  ) : null}
-                </View>
-                <View style={styles.body}>
-                  <Text style={[styles.label, !event.completed && styles.incompleteLabel]}>
-                    {event.label}
+                  />
+                ) : null}
+              </View>
+              <View style={styles.progressBody}>
+                <Text style={[styles.progressLabel, !event.completed && styles.incompleteLabel]}>
+                  {event.label}
+                </Text>
+                {event.note ? <Text style={styles.progressNote}>{event.note}</Text> : null}
+                {event.completed && event.at ? (
+                  <Text style={styles.progressTime}>
+                    {event.actor ? `${event.actor} · ` : ""}
+                    {dayjs(event.at).format("DD MMM, h:mm A")}
                   </Text>
-                  {event.note ? <Text style={styles.note}>{event.note}</Text> : null}
-                  {event.completed && event.at ? (
-                    <Text style={styles.time}>
-                      {event.actor ? `${event.actor} · ` : ""}
-                      {dayjs(event.at).format("DD MMM, h:mm A")}
-                    </Text>
-                  ) : null}
-                </View>
-              </Animated.View>
-            );
-          })}
-        </View>
-      ) : null}
+                ) : null}
+              </View>
+            </Animated.View>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -182,34 +161,57 @@ const useStyles = makeStyles((colors) => ({
   wrap: {
     gap: 0,
   },
-  summary: {
+  progressHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
+    justifyContent: "space-between",
+    gap: spacing.sm,
     paddingVertical: spacing.sm,
-  },
-  summaryText: {
-    flex: 1,
-    gap: 2,
-  },
-  summaryTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 13,
-    color: colors.onSurface,
-  },
-  summaryDetail: {
-    fontFamily: fonts.text,
-    fontSize: 12,
-    lineHeight: 17,
-    color: colors.onSurfaceSecondary,
-  },
-  summaryNext: {
-    fontFamily: fonts.medium,
-    fontSize: 12,
-    color: colors.muted,
   },
   progressList: {
     paddingTop: spacing.sm,
+  },
+  progressRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  progressRail: {
+    alignItems: "center",
+    width: 30,
+  },
+  progressDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  progressLine: {
+    width: 2,
+    flex: 1,
+    marginVertical: 2,
+  },
+  progressBody: {
+    flex: 1,
+    paddingBottom: spacing.lg,
+    gap: 3,
+  },
+  progressLabel: {
+    fontFamily: fonts.semibold,
+    fontSize: 15,
+    color: colors.onSurface,
+  },
+  progressNote: {
+    fontFamily: fonts.text,
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.onSurfaceSecondary,
+  },
+  progressTime: {
+    fontFamily: fonts.text,
+    fontSize: 12,
+    color: colors.muted,
   },
   row: {
     flexDirection: "row",
