@@ -54,12 +54,14 @@ export function ReportBody({
       at: inspectionEvent?.at ?? report.created_at,
       completed: true,
     },
-    {
-      label: "Citizens contributed",
-      note: `${report.reporter_count} ${report.reporter_count === 1 ? "contributor" : "contributors"}`,
-      at: latestReporter?.at ?? submittedEvent?.at ?? report.created_at,
-      completed: true,
-    },
+    ...(report.reporter_count > 1
+      ? [{
+          label: "Citizens contributed",
+          note: `${report.reporter_count} contributors`,
+          at: latestReporter?.at ?? submittedEvent?.at ?? report.created_at,
+          completed: true,
+        }]
+      : []),
     {
       label: "Mayor assigns a contractor",
       note: assignmentComplete && report.contractor_name
