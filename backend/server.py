@@ -38,7 +38,7 @@ from decisions import (
 db = FirestoreDatabase()
 SEED_VERSION = "v3"
 SEED_DIR = ROOT_DIR / "seed_images"
-MERGE_RADIUS_M = 12
+MERGE_RADIUS_M = 5
 OPEN_STATUSES = ["pending_review", "assigned", "in_progress", "rework"]
 AI_UNAVAILABLE = "AI check unavailable, try again"
 logger = logging.getLogger(__name__)
@@ -886,6 +886,8 @@ async def create_report(
     citizen_name: str = Form(...),
     description: str = Form(""),
     analysis: str = Form(""),
+    confirmed_match_id: str = Form(""),
+    separate_match_id: str = Form(""),
 ):
     data = await image.read()
     if not data:
@@ -912,10 +914,57 @@ async def create_report(
             detail="This doesn't look like road damage. Please photograph the pothole.",
         )
 
-    open_docs = await db.reports.find(
-        {"status": {"$in": OPEN_STATUSES}}
-    ).to_list(1000)
-    nearby = nearby_report_matches(lat, lng, open_docs)
+    if confirmed_match_id and separate_match_id:
+        raise HTTPException(
+            status_code=400, detail="Choose whether this is the same pothole."
+        )
+
+    nearby = []
+    selected_match_id = confirmed_match_id or separate_match_id
+    if selected_match_id:
+        selected_doc = await db.reports.find_one({"_id": selected_match_id})
+        if not selected_doc or (
+            confirmed_match_id and selected_doc.get("status") not in OPEN_STATUSES
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="The nearby report changed. Please submit again.",
+            )
+        try:
+            distance_m = haversine_m(
+                lat, lng, float(selected_doc["lat"]), float(selected_doc["lng"])
+            )
+        except (KeyError, TypeError, ValueError):
+            distance_m = MERGE_RADIUS_M + 1
+        if distance_m > MERGE_RADIUS_M:
+            raise HTTPException(
+                status_code=409,
+                detail=f"The report is no longer within {MERGE_RADIUS_M} metres of this pin. Please submit again.",
+            )
+        if confirmed_match_id:
+            nearby = [(distance_m, selected_doc)]
+    else:
+        open_docs = await db.reports.find(
+            {"status": {"$in": OPEN_STATUSES}}
+        ).to_list(1000)
+        nearby = nearby_report_matches(lat, lng, open_docs)
+        if nearby:
+            distance_m, candidate_doc = nearby[0]
+            candidate = Report.from_firestore(candidate_doc)
+            already_reported = candidate.citizen_id == citizen_id or any(
+                reporter.citizen_id == citizen_id for reporter in candidate.reporters
+            )
+            return {
+                "match_required": True,
+                "candidate": {
+                    "id": candidate.id,
+                    "address": candidate.address,
+                    "distance_m": round(distance_m),
+                    "reporter_count": candidate.reporter_count,
+                    "already_reported": already_reported,
+                },
+            }
+
     if nearby:
         existing = Report.from_firestore(nearby[0][1])
         already_reported = existing.citizen_id == citizen_id or any(

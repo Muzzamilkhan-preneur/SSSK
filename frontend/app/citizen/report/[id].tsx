@@ -1,26 +1,27 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Ionicons from "@react-native-vector-icons/ionicons";
+import Animated, { FadeIn, ReduceMotion, useReducedMotion } from "react-native-reanimated";
 
 import { api, qk } from "@/src/api";
+import { EmptyState } from "@/src/components/EmptyState";
 import { ReportBody } from "@/src/components/ReportBody";
 import { ScreenHeader } from "@/src/components/ScreenHeader";
-import { StatusBadge } from "@/src/components/StatusBadge";
-import { fonts, makeStyles, radius, spacing, useTheme, withAlpha } from "@/src/theme";
+import { makeStyles, spacing, useTheme } from "@/src/theme";
 
 export default function ReportDetail() {
-  const { id, merged } = useLocalSearchParams<{ id: string; merged?: string }>();
+  const { id, merged, already } = useLocalSearchParams<{ id: string; merged?: string; already?: string }>();
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
 
-  const { data: report, isLoading } = useQuery({ queryKey: qk.report(String(id)), queryFn: () => api.report(String(id)), enabled: !!id });
+  const { data: report, isLoading, isError, refetch } = useQuery({ queryKey: qk.report(String(id)), queryFn: () => api.report(String(id)), enabled: !!id });
   const back = () => (router.canGoBack() ? router.back() : router.replace("/citizen/tabs/reports"));
 
-  if (isLoading || !report) {
+  if (isLoading) {
     return (
       <View style={styles.screen}>
         <ScreenHeader title="Report" onBack={back} />
@@ -28,20 +29,40 @@ export default function ReportDetail() {
       </View>
     );
   }
+  if (isError || !report) {
+    return (
+      <View style={styles.screen}>
+        <ScreenHeader title="Report" onBack={back} />
+        <EmptyState
+          icon="cloud-offline"
+          title="Could not load this report"
+          subtitle="The service is temporarily unavailable. Try again."
+          actionTitle="Retry"
+          onAction={() => { refetch(); }}
+          testID="report-detail-error"
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader title="Report" subtitle={new Date(report.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} onBack={back} right={<StatusBadge status={report.status} />} />
+      <ScreenHeader title="Report" subtitle={new Date(report.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} onBack={back} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: insets.bottom + spacing.xl, gap: spacing.lg }}>
-        {merged ? (
-          <View style={styles.merged} testID="merged-banner">
-            <Ionicons name="people" size={18} color={colors.info} />
-            <Text style={styles.mergedText}>
-              Already reported. You&apos;ve been added. {report.reporter_count} citizens have reported this pothole.
-            </Text>
-          </View>
-        ) : null}
-        <ReportBody report={report} />
+        <Animated.View entering={FadeIn.duration(reduceMotion ? 0 : 240).reduceMotion(ReduceMotion.System)}>
+          <ReportBody
+            report={report}
+            communityCount={report.reporter_count}
+            communityNotice={
+              merged
+                ? already
+                  ? "You’re already a contributor to this report."
+                  : "This location already has a report. You have been added as a contributor. The AI assessment is based on the original photo."
+                : undefined
+            }
+            animated
+          />
+        </Animated.View>
       </ScrollView>
     </View>
   );
@@ -49,6 +70,4 @@ export default function ReportDetail() {
 
 const useStyles = makeStyles((colors) => ({
   screen: { flex: 1, backgroundColor: colors.surface },
-  merged: { flexDirection: "row", alignItems: "center", gap: spacing.sm, borderWidth: 1, borderColor: withAlpha(colors.info, 0.4), backgroundColor: withAlpha(colors.info, 0.08), borderRadius: radius.md, padding: spacing.md },
-  mergedText: { flex: 1, fontFamily: fonts.semibold, fontSize: 13.5, lineHeight: 19, color: colors.onSurface },
 }));

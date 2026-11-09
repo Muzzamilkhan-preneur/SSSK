@@ -5,6 +5,7 @@ export type Session = {
   name: string;
   citizen_id?: string;
   selfie_path?: string | null;
+  citizen_verified?: boolean;
   contractor_id?: string;
 };
 
@@ -43,6 +44,7 @@ export type Report = {
   reporters: Reporter[];
   reporter_count: number;
   image_path: string;
+  extra_image_paths?: string[];
   after_image_path?: string | null;
   lat: number;
   lng: number;
@@ -72,10 +74,10 @@ export type Contractor = {
   specialty: string;
   rating: number;
   completed_jobs: number;
+  is_verified: boolean;
 };
 
 export type AiAnalysis = {
-  duplicate_photo: boolean;
   is_road_damage: boolean;
   road_probability?: number;
   severity?: Severity;
@@ -86,11 +88,30 @@ export type AiAnalysis = {
   needs_review?: boolean;
 };
 
+export type NearbyReportMatch = {
+  id: string;
+  address?: string | null;
+  distance_m: number;
+  reporter_count: number;
+  already_reported: boolean;
+};
+
+export type CreateReportResult =
+  | { match_required: true; candidate: NearbyReportMatch }
+  | { merged: boolean; already_reported?: boolean; report: Report };
+
 export type SelfieResult = {
   passed: boolean;
   reason: string | null;
   checks: Finding[];
-  citizen: { id: string; name: string; selfie_path: string | null } | null;
+  citizen: { id: string; name: string; selfie_path: string | null; selfie_verified: boolean } | null;
+};
+
+export type CitizenProfile = {
+  id: string;
+  name: string;
+  selfie_path: string | null;
+  selfie_verified: boolean;
 };
 
 export type Stats = {

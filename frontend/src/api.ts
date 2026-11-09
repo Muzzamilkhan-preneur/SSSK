@@ -1,5 +1,5 @@
 import { uploadForm, type LocalFile } from "@/src/utils/upload";
-import type { AiAnalysis, Contractor, Report, SelfieResult, Stats } from "@/src/types";
+import type { AiAnalysis, Contractor, CreateReportResult, Report, SelfieResult, Stats } from "@/src/types";
 
 const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -62,12 +62,24 @@ export const api = {
     upload<SelfieResult>("/api/citizens/register", { files: { image: file }, fields: { name } }),
 
   analyzePothole: (file: LocalFile) =>
-    upload<AiAnalysis>("/api/ai/analyze-pothole", { files: { image: file } }),
+    upload<AiAnalysis>("/api/ai/analyze-pothole", {
+      files: { image: file },
+    }),
 
   geocode: (lat: number, lng: number) => get<{ address: string }>(`/api/geocode?lat=${lat}&lng=${lng}`),
 
-  createReport: (input: { file: LocalFile; lat: number; lng: number; citizenId: string; citizenName: string; description: string; analysis?: AiAnalysis | null }) =>
-    upload<{ merged: boolean; report: Report }>("/api/reports", {
+  createReport: (input: {
+    file: LocalFile;
+    lat: number;
+    lng: number;
+    citizenId: string;
+    citizenName: string;
+    description: string;
+    analysis?: AiAnalysis | null;
+    confirmedMatchId?: string;
+    separateMatchId?: string;
+  }) =>
+    upload<CreateReportResult>("/api/reports", {
       files: { image: input.file },
       fields: {
         lat: String(input.lat),
@@ -76,6 +88,8 @@ export const api = {
         citizen_name: input.citizenName,
         description: input.description,
         analysis: input.analysis ? JSON.stringify(input.analysis) : "",
+        confirmed_match_id: input.confirmedMatchId ?? "",
+        separate_match_id: input.separateMatchId ?? "",
       },
     }),
 
