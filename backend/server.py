@@ -670,7 +670,7 @@ async def seed_demo_data() -> None:
                 TimelineEvent(
                     status="pending_review",
                     label="AI Inspection Complete",
-                    note=f"{sev_label} severity ({round(a['severity_confidence'] * 100)}% confident)",
+                    note=f"{sev_label} severity",
                     actor="AI Inspector",
                     at=now,
                 ),
@@ -1081,7 +1081,7 @@ async def create_report(
             TimelineEvent(
                 status="pending_review",
                 label="AI Inspection Complete",
-                note=f"{a['severity'].title()} severity ({round(a['severity_confidence'] * 100)}% confident)"
+                note=f"{a['severity'].title()} severity"
                 + (". Needs Mayor review" if a["needs_review"] else ""),
                 actor="AI Inspector",
                 at=now,
@@ -1233,7 +1233,7 @@ async def complete_repair(report_id: str, image: UploadFile = File(...)):
             TimelineEvent(
                 status="verified",
                 label="Repair Verified by AI",
-                note=f"Pothole filled and surface level ({round(v['confidence'] * 100)}% confident)",
+                note="Pothole filled and surface level",
                 actor="AI Auditor",
                 at=now,
             )

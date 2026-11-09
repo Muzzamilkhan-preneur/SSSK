@@ -108,6 +108,7 @@ export function Timeline({ events, testID, animated = false }: { events: Timelin
     <View testID={testID ?? "report-timeline"} style={styles.wrap}>
       {events.map((event, i) => {
         const meta = statusMeta(event.status as ReportStatus, colors);
+        const note = event.note?.replace(/\s*\(\d+(?:\.\d+)?% confident\)/gi, "").trim();
         return (
           <Animated.View
             key={`${i}-${event.label}`}
@@ -136,7 +137,7 @@ export function Timeline({ events, testID, animated = false }: { events: Timelin
             </View>
             <View style={styles.body}>
               <Text style={styles.label}>{event.label}</Text>
-              {event.note ? <Text style={styles.note}>{event.note}</Text> : null}
+              {note ? <Text style={styles.note}>{note}</Text> : null}
               <Text style={styles.time}>
                 {event.actor ? `${event.actor} · ` : ""}
                 {dayjs(event.at).format("DD MMM, h:mm A")}

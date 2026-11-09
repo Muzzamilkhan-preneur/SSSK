@@ -2,12 +2,10 @@ import { Text, View } from "react-native";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { Card, Kicker } from "@/src/components/Card";
-import { ScoreBar } from "@/src/components/ScoreBar";
 import { SeverityChip } from "@/src/components/SeverityChip";
 import { fonts, makeStyles, spacing, useTheme, withAlpha } from "@/src/theme";
 import type { Finding, Severity, Verification } from "@/src/types";
 
-// Confidence checklist: each finding with a probability bar.
 export function FindingsList({ findings, testID = "findings-list" }: { findings: Finding[]; testID?: string }) {
   const { colors } = useTheme();
   const styles = useStyles();
@@ -22,10 +20,6 @@ export function FindingsList({ findings, testID = "findings-list" }: { findings:
             <Text style={[styles.label, { color }]} numberOfLines={2}>
               {f.label}
             </Text>
-            <View style={styles.bar}>
-              <ScoreBar value={f.probability} color={yes ? colors.onSurfaceSecondary : colors.border} />
-            </View>
-            <Text style={styles.pct}>{Math.round(f.probability * 100)}%</Text>
           </View>
         );
       })}
@@ -89,17 +83,6 @@ const useStyles = makeStyles((colors) => ({
     flex: 1,
     fontFamily: fonts.medium,
     fontSize: 13,
-  },
-  bar: {
-    width: 64,
-    flexDirection: "row",
-  },
-  pct: {
-    width: 38,
-    textAlign: "right",
-    fontFamily: fonts.semibold,
-    fontSize: 12,
-    color: colors.onSurfaceSecondary,
   },
   head: {
     flexDirection: "row",

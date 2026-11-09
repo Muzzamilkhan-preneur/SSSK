@@ -42,7 +42,6 @@ export function ReportBody({
   const inspectionEvent = report.timeline.find((event) => event.label === "AI Inspection Complete");
   const assignmentEvent = report.timeline.find((event) => event.status === "assigned");
   const repairEvent = report.timeline.find((event) => event.status === "verified");
-  const latestReporter = report.reporters[report.reporters.length - 1];
   const assignmentComplete = !!report.contractor_id || !!assignmentEvent;
   const repairComplete = report.status === "verified" || !!repairEvent;
   const progressEvents = [
@@ -58,14 +57,6 @@ export function ReportBody({
       at: inspectionEvent?.at ?? report.created_at,
       completed: true,
     },
-    ...(report.reporter_count > 1
-      ? [{
-          label: "Citizens contributed",
-          note: `${report.reporter_count} contributors`,
-          at: latestReporter?.at ?? submittedEvent?.at ?? report.created_at,
-          completed: true,
-        }]
-      : []),
     {
       label: report.status === "pending_review"
         ? "Awaiting Mayor review"
@@ -182,7 +173,7 @@ export function ReportBody({
           <Ionicons name="chevron-forward" size={18} color={colors.onSurfaceSecondary} />
         </Pressable>
       </Animated.View>
-      {communityCount !== undefined ? (
+      {communityCount !== undefined && communityCount > 1 ? (
         <Animated.View
           entering={entering(140)}
           style={[styles.section, compactTimeline && styles.dividedSection]}
@@ -198,11 +189,7 @@ export function ReportBody({
             >
               {communityCount}
             </Animated.Text>
-            <Text style={styles.communityText}>
-              {communityCount === 1
-                ? "citizen profile has reported this issue"
-                : "citizen profiles have reported this issue"}
-            </Text>
+            <Text style={styles.communityText}>citizens reported this issue</Text>
           </View>
           {communityNotice ? <Text style={styles.notice}>{communityNotice}</Text> : null}
         </Animated.View>

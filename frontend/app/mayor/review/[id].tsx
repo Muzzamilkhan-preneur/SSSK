@@ -55,7 +55,7 @@ export default function ReviewReport() {
     <View style={styles.screen}>
       <ScreenHeader title="Review" subtitle={report.address ?? "Karachi"} onBack={() => (router.canGoBack() ? router.back() : router.replace("/mayor/tabs/queue"))} right={<StatusBadge status={report.status} />} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: insets.bottom + (pending ? 120 : spacing.xl), gap: spacing.lg }}>
-        <ReportBody report={report}>
+        <ReportBody report={report} communityCount={report.reporter_count}>
           {!pending && report.contractor_name ? (
             <View style={styles.assigned} testID="assignment-card">
               <Ionicons name="construct" size={16} color={colors.onSurfaceTertiary} />

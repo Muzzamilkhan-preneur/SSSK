@@ -61,7 +61,7 @@ export default function ContractorJob() {
     <View style={styles.screen}>
       <ScreenHeader title="Repair Order" subtitle={report.address ?? "Karachi"} onBack={() => (router.canGoBack() ? router.back() : router.replace("/contractor/tabs/active"))} right={<StatusBadge status={report.status} />} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: insets.bottom + spacing.xl, gap: spacing.lg }}>
-        <ReportBody report={report}>
+        <ReportBody report={report} communityCount={report.reporter_count}>
           {report.status === "assigned" ? (
             <PrimaryButton title="Start Repair" icon="play" testID="start-repair-btn" loading={start.isPending} onPress={() => start.mutate()} />
           ) : null}
