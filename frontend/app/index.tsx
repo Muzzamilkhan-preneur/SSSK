@@ -8,6 +8,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 
 import { api, qk } from "@/src/api";
 import { BottomSheet } from "@/src/components/BottomSheet";
+import { VerifiedCrewBadge } from "@/src/components/VerifiedCrewBadge";
 import { getSavedCitizenProfile, getSession, homeFor, saveSession } from "@/src/session";
 import { fonts, makeStyles, radius, spacing, useTheme } from "@/src/theme";
 import type { Contractor, Role, Session } from "@/src/types";
@@ -81,7 +82,7 @@ export default function RolePicker() {
       role: "mayor",
       icon: "shield",
       title: "Mayor Office",
-      desc: "Review reports, mark them genuine or fake, and assign approved contractors.",
+      desc: "Review reports, mark them genuine or fake, and assign repair crews.",
       badge: stats ? `${pending} awaiting review` : " ",
       testID: "role-card-mayor",
       onPress: () => enter("mayor", "Mayor Office"),
@@ -103,7 +104,7 @@ export default function RolePicker() {
         <View style={styles.logoMark}>
           <Ionicons name="construct" size={22} color={colors.onBrandPrimary} />
         </View>
-        <Text style={styles.title}>Saaf Sarak</Text>
+        <Text style={styles.title}>SSSK</Text>
         <Text style={styles.titleAccent}>SAAF KARACHI</Text>
         <Text style={styles.lede}>Report potholes, track every repair, and see it verified with photos.</Text>
       </Animated.View>
@@ -128,14 +129,17 @@ export default function RolePicker() {
         {pickerError ? <Text style={styles.pickerError} testID="role-picker-error">{pickerError}</Text> : null}
       </Animated.View>
 
-      <Text style={styles.footerText}>Karachi Municipal Authority · Civic Demo</Text>
+      <Text style={styles.footerText}>Independent civic-tech demo · Not an official KMC service</Text>
 
       <BottomSheet visible={contractorSheet} onClose={() => setContractorSheet(false)} title="Choose your crew" testID="contractor-sheet">
         <View style={styles.contractorList}>
           {(contractors ?? []).map((c: Contractor) => (
             <Pressable key={c.id} testID={`contractor-select-${c.id}`} onPress={() => enter("contractor", c.name, c.id)} style={({ pressed }) => [styles.contractorRow, pressed && styles.cardPressed]}>
               <View style={styles.contractorBody}>
-                <Text style={styles.contractorName}>{c.name}</Text>
+                <View style={styles.contractorHeading}>
+                  <Text style={styles.contractorName}>{c.name}</Text>
+                  {c.is_verified ? <VerifiedCrewBadge /> : null}
+                </View>
                 <Text style={styles.contractorSpec}>{c.specialty}</Text>
               </View>
               <View style={styles.contractorMeta}>
@@ -168,11 +172,12 @@ const useStyles = makeStyles((colors) => ({
   cardTitle: { fontFamily: fonts.display, fontSize: 17, color: colors.onSurface },
   cardBadge: { fontFamily: fonts.semibold, fontSize: 11, color: colors.onBrandTertiary },
   cardDesc: { fontFamily: fonts.text, fontSize: 13, lineHeight: 18, color: colors.onSurfaceTertiary },
-  pickerError: { fontFamily: fonts.medium, fontSize: 13, color: colors.error },
   footerText: { fontFamily: fonts.medium, fontSize: 11, letterSpacing: 0.6, color: colors.muted, textTransform: "uppercase", textAlign: "center" },
+  pickerError: { fontFamily: fonts.medium, fontSize: 13, color: colors.error },
   contractorList: { gap: spacing.sm },
   contractorRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.lg, backgroundColor: colors.surface },
   contractorBody: { flex: 1, gap: 2 },
+  contractorHeading: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.sm },
   contractorName: { fontFamily: fonts.semibold, fontSize: 14, color: colors.onSurface },
   contractorSpec: { fontFamily: fonts.text, fontSize: 12, color: colors.muted },
   contractorMeta: { flexDirection: "row", alignItems: "center", gap: 4 },

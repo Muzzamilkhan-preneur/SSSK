@@ -7,6 +7,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 
 import { api, qk } from "@/src/api";
 import { Card, Kicker } from "@/src/components/Card";
+import { EmptyState } from "@/src/components/EmptyState";
 import { CheckProgress } from "@/src/components/CheckProgress";
 import { PhotoActions } from "@/src/components/PhotoActions";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
@@ -30,7 +31,7 @@ export default function ContractorJob() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
-  const { data: report, isLoading } = useQuery({ queryKey: qk.report(String(id)), queryFn: () => api.report(String(id)), enabled: !!id });
+  const { data: report, isLoading, isError, refetch } = useQuery({ queryKey: qk.report(String(id)), queryFn: () => api.report(String(id)), enabled: !!id });
 
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: qk.report(String(id)) });
@@ -47,11 +48,26 @@ export default function ContractorJob() {
     },
   });
 
-  if (isLoading || !report) {
+  if (isLoading) {
     return (
       <View style={styles.screen}>
         <ScreenHeader title="Repair Order" onBack={() => (router.canGoBack() ? router.back() : router.replace("/contractor/tabs/active"))} />
         <ActivityIndicator style={{ marginTop: spacing.xxxl }} color={colors.brandPrimary} testID="job-loading" />
+      </View>
+    );
+  }
+  if (isError || !report) {
+    return (
+      <View style={styles.screen}>
+        <ScreenHeader title="Repair Order" onBack={() => (router.canGoBack() ? router.back() : router.replace("/contractor/tabs/active"))} />
+        <EmptyState
+          icon="cloud-offline"
+          title="Could not load this job"
+          subtitle="The service is temporarily unavailable. Try again."
+          actionTitle="Retry"
+          onAction={() => { refetch(); }}
+          testID="job-load-error"
+        />
       </View>
     );
   }
@@ -62,6 +78,7 @@ export default function ContractorJob() {
       <ScreenHeader title="Repair Order" subtitle={report.address ?? "Karachi"} onBack={() => (router.canGoBack() ? router.back() : router.replace("/contractor/tabs/active"))} right={<StatusBadge status={report.status} />} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: insets.bottom + spacing.xl, gap: spacing.lg }}>
         <ReportBody report={report} communityCount={report.reporter_count}>
+          {start.isError ? <Text style={styles.err} testID="start-repair-error">{start.error.message}</Text> : null}
           {report.status === "assigned" ? (
             <PrimaryButton title="Start Repair" icon="play" testID="start-repair-btn" loading={start.isPending} onPress={() => start.mutate()} />
           ) : null}
@@ -70,7 +87,7 @@ export default function ContractorJob() {
               <Card testID="proof-upload-card">
                 <Kicker icon="camera">Upload repair proof</Kicker>
                 <Text style={styles.help}>Photograph the same spot from a similar angle. AI compares it with the citizen&apos;s photo before the report is marked fixed.</Text>
-                {proof.isPending ? <CheckProgress title="AI repair check" steps={STEPS} pending results={null} testID="repair-check" /> : null}
+                {proof.isPending ? <CheckProgress title="AI repair check" steps={STEPS} pending pendingLabel="AI is comparing the repair photos…" results={null} testID="repair-check" /> : null}
                 {proof.isError ? <Text style={styles.err} testID="proof-error">{proof.error.message}</Text> : null}
                 {!proof.isPending ? <PhotoActions onPicked={(f) => proof.mutate(f)} cameraTitle={report.status === "rework" ? "Retake Proof" : "Proof Photo"} galleryTitle="From Gallery" /> : null}
               </Card>

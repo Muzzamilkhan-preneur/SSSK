@@ -19,24 +19,34 @@ type Props = {
 export function PhotoActions({ onPicked, cameraTitle = "Take Photo", galleryTitle = "Choose from Gallery", disabled = false }: Props) {
   const styles = useStyles();
   const [blocked, setBlocked] = useState<null | "camera" | "gallery">(null);
+  const [error, setError] = useState<string | null>(null);
 
   const pick = async (kind: "camera" | "gallery") => {
     setBlocked(null);
-    const perm = await ensureMediaPermission(kind);
-    if (perm === "blocked") {
-      setBlocked(kind);
-      return;
+    setError(null);
+    try {
+      const perm = await ensureMediaPermission(kind);
+      if (perm === "blocked") {
+        setBlocked(kind);
+        return;
+      }
+      if (perm === "denied") {
+        setError(`${kind === "camera" ? "Camera" : "Photo library"} permission was denied. Allow access and try again.`);
+        return;
+      }
+      const options: ImagePicker.ImagePickerOptions = { mediaTypes: ["images"], quality: 0.6, allowsEditing: false };
+      const result = kind === "camera" ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      onPicked({
+        uri: asset.uri,
+        name: asset.fileName ?? `photo.${(asset.mimeType ?? "image/jpeg").split("/")[1] ?? "jpg"}`,
+        mimeType: asset.mimeType ?? "image/jpeg",
+      });
+    } catch (e) {
+      console.error(`[report ${kind}]`, e);
+      setError(e instanceof Error ? e.message : "Could not open the photo source. Please try again.");
     }
-    if (perm !== "granted") return;
-    const options: ImagePicker.ImagePickerOptions = { mediaTypes: ["images"], quality: 0.6, allowsEditing: false };
-    const result = kind === "camera" ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
-    if (result.canceled || !result.assets?.[0]) return;
-    const asset = result.assets[0];
-    onPicked({
-      uri: asset.uri,
-      name: asset.fileName ?? `photo.${(asset.mimeType ?? "image/jpeg").split("/")[1] ?? "jpg"}`,
-      mimeType: asset.mimeType ?? "image/jpeg",
-    });
   };
 
   return (
@@ -53,6 +63,7 @@ export function PhotoActions({ onPicked, cameraTitle = "Take Photo", galleryTitl
           <PrimaryButton title="Open Settings" icon="settings" small testID="open-settings-btn" onPress={() => Linking.openSettings()} />
         </View>
       ) : null}
+      {error ? <Text style={styles.error} testID="photo-action-error">{error}</Text> : null}
     </View>
   );
 }
@@ -81,5 +92,11 @@ const useStyles = makeStyles((colors) => ({
     fontSize: 12.5,
     lineHeight: 18,
     color: colors.onSurfaceSecondary,
+  },
+  error: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.error,
   },
 }));

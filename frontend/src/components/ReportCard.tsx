@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { Pressable, Text, View } from "react-native";
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated, { FadeInDown, LinearTransition, ReduceMotion, useReducedMotion } from "react-native-reanimated";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { fileUrl } from "@/src/api";
@@ -18,12 +18,14 @@ type Props = {
   onPress: () => void;
   selected?: boolean;
   testID?: string;
+  animationDelay?: number;
   citizenId?: string;
 };
 
-export function ReportCard({ report, onPress, selected = false, testID, citizenId }: Props) {
+export function ReportCard({ report, onPress, selected = false, testID, animationDelay = 0, citizenId }: Props) {
   const { colors } = useTheme();
   const styles = useStyles();
+  const reduceMotion = useReducedMotion();
   const myContribution = citizenId
     ? report.reporters.find((reporter) => reporter.citizen_id === citizenId)
     : undefined;
@@ -31,7 +33,13 @@ export function ReportCard({ report, onPress, selected = false, testID, citizenI
   const thumbnailPath = myContribution?.image_path || report.image_path;
 
   return (
-    <Animated.View entering={FadeIn.duration(200)}>
+    <Animated.View
+      key={`${report.id}-${report.status}`}
+      entering={FadeInDown.duration(reduceMotion ? 0 : 220)
+        .delay(reduceMotion ? 0 : Math.min(animationDelay, 140))
+        .reduceMotion(ReduceMotion.System)}
+      layout={LinearTransition.duration(220).reduceMotion(ReduceMotion.System)}
+    >
       <Pressable
         testID={testID ?? `report-card-${report.id}`}
         onPress={onPress}
@@ -44,7 +52,7 @@ export function ReportCard({ report, onPress, selected = false, testID, citizenI
           </Text>
           <Text numberOfLines={1} style={styles.sub}>
             {isContributor && myContribution
-              ? "Your contribution · " + dayjs(myContribution.at).fromNow()
+              ? `Your contribution · ${dayjs(myContribution.at).fromNow()}`
               : `${dayjs(report.created_at).fromNow()} · ${report.description || "Pothole report"}`}
           </Text>
           <View style={styles.meta}>

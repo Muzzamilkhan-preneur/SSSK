@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Saaf Sarak",
+    "name": "SSSK",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -19,7 +19,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000000"
+        "backgroundColor": "#D94E28"
       },
       "package": "com.saafkarachi.app",
       "permissions": [

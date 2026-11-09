@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { FlatList, Pressable, RefreshControl, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, { FadeIn, ReduceMotion, useReducedMotion } from "react-native-reanimated";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { api, qk } from "@/src/api";
@@ -24,6 +25,7 @@ export default function CitizenReports() {
   const insets = useSafeAreaInsets();
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
   const session = useSession();
+  const reduceMotion = useReducedMotion();
   const [filter, setFilter] = useState("all");
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
@@ -41,7 +43,7 @@ export default function CitizenReports() {
     <View style={styles.screen}>
       <ScreenHeader
         title="My Reports"
-        subtitle={`${session?.name ?? "Citizen"} · Verified citizen`}
+        subtitle={`${session?.name ?? "Citizen"} · ${session?.citizen_verified === false ? "Selfie skipped" : "Selfie checked"}`}
         right={<RoleSwitchButton />}
         bottom={<FilterChipRowInteractive options={STATUS_FILTERS} value={filter} onChange={setFilter} />}
       />
@@ -51,17 +53,27 @@ export default function CitizenReports() {
         <FlatList
           data={filtered}
           keyExtractor={(r) => r.id}
-          renderItem={({ item, index }) => <ReportCard report={item} citizenId={session?.citizen_id} onPress={() => router.push(`/citizen/report/${item.id}`)} testID={`citizen-report-card-${index}`} />}
+          renderItem={({ item, index }) => (
+            <ReportCard
+              report={item}
+              citizenId={session?.citizen_id}
+              animationDelay={Math.min(index, 4) * 35}
+              onPress={() => router.push(`/citizen/report/${item.id}`)}
+              testID={`citizen-report-card-${index}`}
+            />
+          )}
           contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: bottomChrome + 96, gap: spacing.md }}
           ListEmptyComponent={
-            <EmptyState
-              icon={isError ? "cloud-offline" : "camera"}
-              title={isError ? "Could not load reports" : filter === "all" ? "No reports yet" : "Nothing here yet"}
-              subtitle={isError ? "The service is temporarily unavailable. Try again." : "Photograph a pothole and the AI will inspect it before it reaches the Mayor's office."}
-              actionTitle={isError ? "Retry" : "Report a Pothole"}
-              onAction={() => (isError ? refetch() : router.push("/citizen/new"))}
-              testID="citizen-reports-empty"
-            />
+            <Animated.View key={filter} entering={FadeIn.duration(reduceMotion ? 0 : 220).reduceMotion(ReduceMotion.System)}>
+              <EmptyState
+                icon={isError ? "cloud-offline" : "camera"}
+                title={isError ? "Could not load reports" : filter === "all" ? "No reports yet" : "Nothing here yet"}
+                subtitle={isError ? "The service is temporarily unavailable. Try again." : "Photograph a pothole and the AI will inspect it before it reaches the Mayor's office."}
+                actionTitle={isError ? "Retry" : "Report a Pothole"}
+                onAction={() => (isError ? refetch() : router.push("/citizen/new"))}
+                testID="citizen-reports-empty"
+              />
+            </Animated.View>
           }
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { refetch(); }} tintColor={colors.brandPrimary} />}
         />

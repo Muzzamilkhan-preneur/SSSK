@@ -1,4 +1,5 @@
 import { Text, View } from "react-native";
+import Animated, { FadeIn, ReduceMotion, useReducedMotion } from "react-native-reanimated";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { Card, Kicker } from "@/src/components/Card";
@@ -6,21 +7,43 @@ import { SeverityChip } from "@/src/components/SeverityChip";
 import { fonts, makeStyles, spacing, useTheme, withAlpha } from "@/src/theme";
 import type { Finding, Severity, Verification } from "@/src/types";
 
-export function FindingsList({ findings, testID = "findings-list" }: { findings: Finding[]; testID?: string }) {
+export function FindingsList({
+  findings,
+  testID = "findings-list",
+  animated = false,
+}: {
+  findings: Finding[];
+  testID?: string;
+  animated?: boolean;
+}) {
   const { colors } = useTheme();
   const styles = useStyles();
+  const reduceMotion = useReducedMotion();
   return (
     <View style={styles.list} testID={testID}>
-      {findings.map((f) => {
+      {findings.map((f, index) => {
         const yes = f.probability >= 0.5;
         const color = yes ? colors.onSurface : colors.muted;
         return (
-          <View key={f.key} style={styles.row} testID={`finding-${f.key}`}>
-            <Ionicons name={yes ? "checkmark-circle" : "remove-circle-outline"} size={16} color={yes ? colors.brandPrimary : colors.border} />
+          <Animated.View
+            key={f.key}
+            entering={animated
+              ? FadeIn.duration(reduceMotion ? 0 : 220)
+                .delay(reduceMotion ? 0 : Math.min(index, 3) * 70)
+                .reduceMotion(ReduceMotion.System)
+              : undefined}
+            style={styles.row}
+            testID={`finding-${f.key}`}
+          >
+            <Ionicons
+              name={yes ? "checkmark-circle" : "remove-circle-outline"}
+              size={16}
+              color={yes ? colors.brandPrimary : colors.border}
+            />
             <Text style={[styles.label, { color }]} numberOfLines={2}>
               {f.label}
             </Text>
-          </View>
+          </Animated.View>
         );
       })}
     </View>
@@ -31,23 +54,29 @@ type InspectionProps = {
   severity?: Severity | null;
   findings: Finding[];
   testID?: string;
+  animated?: boolean;
 };
 
-export function InspectionCard({ severity, findings, testID = "ai-inspection-card" }: InspectionProps) {
+export function InspectionCard({ severity, findings, testID = "ai-inspection-card", animated = false }: InspectionProps) {
   const styles = useStyles();
+  const reduceMotion = useReducedMotion();
   return (
-    <Card testID={testID}>
-      <View style={styles.head}>
-        <Kicker icon="sparkles">What the AI saw</Kicker>
-      </View>
-      {severity ? (
-        <View style={styles.sevRow}>
-          <Text style={styles.sevLabel}>Severity</Text>
-          <SeverityChip severity={severity} testID="inspection-severity" />
+    <Animated.View
+      entering={animated ? FadeIn.duration(reduceMotion ? 0 : 240).reduceMotion(ReduceMotion.System) : undefined}
+    >
+      <Card testID={testID}>
+        <View style={styles.head}>
+          <Kicker icon="sparkles">What the AI saw</Kicker>
         </View>
-      ) : null}
-      {findings.length ? <FindingsList findings={findings} /> : null}
-    </Card>
+        {severity ? (
+          <View style={styles.sevRow}>
+            <Text style={styles.sevLabel}>Severity</Text>
+            <SeverityChip severity={severity} testID="inspection-severity" />
+          </View>
+        ) : null}
+        {findings.length ? <FindingsList findings={findings} animated={animated} /> : null}
+      </Card>
+    </Animated.View>
   );
 }
 

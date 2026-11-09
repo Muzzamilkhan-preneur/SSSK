@@ -48,7 +48,7 @@ export default function MayorQueue() {
     <View style={styles.screen}>
       <ScreenHeader
         title="Review Queue"
-        subtitle="Karachi Municipal Authority"
+        subtitle="Karachi Metropolitan Corporation"
         right={<RoleSwitchButton />}
         bottom={
           <View style={styles.headerStack}>

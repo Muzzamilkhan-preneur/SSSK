@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { api, qk } from "@/src/api";
 import { Card, Kicker } from "@/src/components/Card";
+import { EmptyState } from "@/src/components/EmptyState";
 import { RoleSwitchButton } from "@/src/components/RoleSwitchButton";
 import { ScreenHeader } from "@/src/components/ScreenHeader";
 import { ScoreBar } from "@/src/components/ScoreBar";
@@ -21,14 +22,23 @@ export default function MayorStats() {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
-  const { data: stats, isLoading } = useQuery({ queryKey: qk.stats, queryFn: api.stats });
+  const { data: stats, isLoading, isError, refetch } = useQuery({ queryKey: qk.stats, queryFn: api.stats });
 
-  const header = <ScreenHeader title="City Stats" subtitle="Karachi Municipal Authority" right={<RoleSwitchButton />} />;
+  const header = <ScreenHeader title="City Stats" subtitle="Karachi Metropolitan Corporation" right={<RoleSwitchButton />} />;
   if (isLoading || !stats) {
     return (
       <View style={styles.screen}>
         {header}
-        <SkeletonList rows={4} />
+        {isError ? (
+          <EmptyState
+            icon="cloud-offline"
+            title="Could not load city stats"
+            subtitle="The service is temporarily unavailable. Try again."
+            actionTitle="Retry"
+            onAction={() => { refetch(); }}
+            testID="city-stats-error"
+          />
+        ) : <SkeletonList rows={4} />}
       </View>
     );
   }

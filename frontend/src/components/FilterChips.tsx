@@ -1,4 +1,5 @@
-import { ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import Animated, { LinearTransition, ReduceMotion, useAnimatedStyle, withTiming } from "react-native-reanimated";
 
 import { makeStyles, radius, fonts, spacing, useTheme } from "@/src/theme";
 
@@ -52,31 +53,69 @@ export function FilterChipRowInteractive({
   value: string;
   onChange: (key: string) => void;
 }) {
-  const { colors } = useTheme();
   const styles = useStyles();
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scroller} contentContainerStyle={styles.row} testID="filter-chip-row">
       {options.map((opt) => {
         const selected = opt.key === value;
         return (
-          <Text
+          <InteractiveFilterChip
             key={opt.key}
+            label={opt.label}
+            selected={selected}
             testID={`filter-chip-${opt.key}`}
             onPress={() => onChange(opt.key)}
-            style={[
-              styles.pressable,
-              styles.label,
-              {
-                backgroundColor: selected ? colors.surfaceInverse : "transparent",
-                color: selected ? colors.onSurfaceInverse : colors.onSurfaceTertiary,
-              },
-            ]}
-          >
-            {opt.label}
-          </Text>
+          />
         );
       })}
     </ScrollView>
+  );
+}
+
+function InteractiveFilterChip({
+  label,
+  selected,
+  onPress,
+  testID,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  testID: string;
+}) {
+  const { colors } = useTheme();
+  const styles = useStyles();
+  const background = useAnimatedStyle(() => ({
+    backgroundColor: withTiming(selected ? colors.surfaceInverse : colors.surface, {
+      duration: 180,
+      reduceMotion: ReduceMotion.System,
+    }),
+    borderColor: withTiming(selected ? colors.surfaceInverse : colors.border, {
+      duration: 180,
+      reduceMotion: ReduceMotion.System,
+    }),
+  }), [colors.border, colors.surface, colors.surfaceInverse, selected]);
+  const foreground = useAnimatedStyle(() => ({
+    color: withTiming(selected ? colors.onSurfaceInverse : colors.onSurfaceTertiary, {
+      duration: 180,
+      reduceMotion: ReduceMotion.System,
+    }),
+  }), [colors.onSurfaceInverse, colors.onSurfaceTertiary, selected]);
+
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+    >
+      <Animated.View
+        layout={LinearTransition.duration(180).reduceMotion(ReduceMotion.System)}
+        style={[styles.pressable, background]}
+      >
+        <Animated.Text style={[styles.label, styles.pressableLabel, foreground]}>{label}</Animated.Text>
+      </Animated.View>
+    </Pressable>
   );
 }
 
@@ -110,9 +149,13 @@ const useStyles = makeStyles((colors) => ({
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  pressableLabel: {
     lineHeight: 34,
     textAlign: "center",
-    overflow: "hidden",
   },
   label: {
     fontFamily: fonts.semibold,

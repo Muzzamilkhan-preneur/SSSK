@@ -1,5 +1,6 @@
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { ActivityIndicator, Pressable, Text } from "react-native";
+import Animated, { ReduceMotion, useAnimatedStyle, withTiming } from "react-native-reanimated";
 
 import { fonts, makeStyles, radius, spacing, useTheme } from "@/src/theme";
 
@@ -29,6 +30,12 @@ export function PrimaryButton({
   const { colors } = useTheme();
   const styles = useStyles();
   const inactive = disabled || loading;
+  const availabilityStyle = useAnimatedStyle(() => ({
+    opacity: withTiming(inactive ? 0.65 : 1, {
+      duration: 180,
+      reduceMotion: ReduceMotion.System,
+    }),
+  }), [inactive]);
   const palette = {
     primary: { backgroundColor: colors.brandPrimary, color: colors.onBrandPrimary },
     secondary: { backgroundColor: colors.surfaceSecondary, color: colors.onSurface },
@@ -37,23 +44,26 @@ export function PrimaryButton({
   }[variant];
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled: inactive }}
-      disabled={inactive}
-      onPress={onPress}
-      testID={testID}
-      style={({ pressed }) => [
-        styles.button,
-        small ? styles.small : null,
-        { backgroundColor: palette.backgroundColor, opacity: pressed || inactive ? 0.65 : 1 },
-        style,
-      ]}
-    >
-      {loading ? <ActivityIndicator color={palette.color} size="small" /> : null}
-      {!loading && icon ? <Ionicons name={icon as never} size={small ? 16 : 18} color={palette.color} /> : null}
-      <Text style={[styles.label, small ? styles.smallLabel : null, { color: palette.color }]}>{title}</Text>
-    </Pressable>
+    <Animated.View style={[style, availabilityStyle]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: inactive }}
+        disabled={inactive}
+        onPress={onPress}
+        testID={testID}
+        style={({ pressed }) => [
+          styles.button,
+          small ? styles.small : null,
+          { backgroundColor: palette.backgroundColor },
+          pressed && styles.pressed,
+          style,
+        ]}
+      >
+        {loading ? <ActivityIndicator color={palette.color} size="small" /> : null}
+        {!loading && icon ? <Ionicons name={icon as never} size={small ? 16 : 18} color={palette.color} /> : null}
+        <Text style={[styles.label, small ? styles.smallLabel : null, { color: palette.color }]}>{title}</Text>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -66,6 +76,9 @@ const useStyles = makeStyles((colors) => ({
     justifyContent: "center",
     flexDirection: "row",
     gap: spacing.sm,
+  },
+  pressed: {
+    opacity: 0.65,
   },
   small: {
     minHeight: 40,

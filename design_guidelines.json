@@ -1,0 +1,153 @@
+{
+  "app_name": "Saaf Sarak, Saaf Karachi",
+  "personality": "5 Brutalist Mobile with iOS-Native Clean Touch",
+  "personality_one_liner": "Uncompromising municipal utility platform bringing rigorous transparency and instant civic action to Karachi roads.",
+  "color": {
+    "surface": "#F9F9F8",
+    "onSurface": "#141414",
+    "surfaceSecondary": "#EEEEEC",
+    "onSurfaceSecondary": "#2C2C2A",
+    "surfaceTertiary": "#E2E2DE",
+    "onSurfaceTertiary": "#444440",
+    "surfaceInverse": "#141414",
+    "onSurfaceInverse": "#F9F9F8",
+    "brand": "#D94E28",
+    "brandPrimary": "#D94E28",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#2C2C2A",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#F3D8D0",
+    "onBrandTertiary": "#8C260D",
+    "success": "#2D7A4E",
+    "onSuccess": "#FFFFFF",
+    "warning": "#C27803",
+    "onWarning": "#FFFFFF",
+    "error": "#D94E28",
+    "onError": "#FFFFFF",
+    "info": "#2B5C8F",
+    "onInfo": "#FFFFFF",
+    "border": "#D4D4CE",
+    "borderStrong": "#141414",
+    "divider": "#E2E2DE",
+    "muted": "#70706B",
+    "onBrand": "#FFFFFF"
+  },
+  "typography": {
+    "displayFontFamily": "SpaceGrotesk_700Bold",
+    "textFontFamily": "Inter_400Regular",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous vertical breathing room with strict alignment and structured cards",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "1",
+  "navigation": "bottom_tabs",
+  "icon_set": "Ionicons",
+  "glassmorphism": {
+    "enabled": false,
+    "do's": [
+      "Use high contrast borders",
+      "Strict brutalist alignment",
+      "Immediate data feedback"
+    ],
+    "dont's": [
+      "No heavy soft blur layers",
+      "No decorative emojis",
+      "No washed-out pastel text"
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "RolePicker",
+      "purpose": "Select user role (Citizen, Mayor/Authority, Contractor) with seeded demo data and instant entry.",
+      "states": {
+        "loading": "Centered minimalist spinner",
+        "empty": "No roles available",
+        "error": "Failed to load roles - tap to retry"
+      },
+      "layout": "FullScreen role selection card deck with crisp typographic badges, live status counts, and instant tap-to-enter."
+    },
+    {
+      "name": "CitizenHome",
+      "purpose": "Overview of reported road issues, live map feed, and quick-action report trigger.",
+      "states": {
+        "loading": "Skeleton pulse rows for active reports",
+        "empty": "No pothole reports yet - tap Report Pothole to begin",
+        "error": "Unable to connect to municipal feed - retry button"
+      },
+      "layout": "Pinned top status header, interactive mini-map toggle, active report cards with severity chips and status badge."
+    },
+    {
+      "name": "ReportFlow",
+      "purpose": "Multi-step wizard to report pothole: photo upload -> AI severity analysis -> map pin confirm -> submit.",
+      "states": {
+        "loading": "Analyzing image with AI vision model...",
+        "empty": "Upload a clear photo of the road damage",
+        "error": "AI analysis failed - try another photo"
+      },
+      "layout": "Step progression indicator, large camera/gallery drop zone, live AI severity card with confidence score, interactive map pin drop."
+    },
+    {
+      "name": "MayorDashboard",
+      "purpose": "Municipal authority command center to review reports, mark genuine/fake, and assign approved contractors.",
+      "states": {
+        "loading": "Loading pending municipal queue...",
+        "empty": "All reports reviewed and assigned!",
+        "error": "Failed to load municipal queue - Retry"
+      },
+      "layout": "Metrics summary banner (Pending, Genuine, Assigned), filter chips, report review cards with Mark Genuine/Fake toggles and contractor assignment dropdown."
+    },
+    {
+      "name": "ContractorWorkspace",
+      "purpose": "Contractor job management view to start repairs, upload proof photo, and trigger AI verification.",
+      "states": {
+        "loading": "Fetching assigned repair orders...",
+        "empty": "No active repair orders assigned",
+        "error": "Failed to load job queue - Retry"
+      },
+      "layout": "Assigned job cards with location badge, 'Start Repair' action, before/after proof uploader, and AI verification pass/fail status."
+    }
+  ],
+  "images": {
+    "pothole_sample": {
+      "url": "https://images.unsplash.com/photo-1635068741358-ab1b9813623f?q=80&w=1000&auto=format&fit=crop",
+      "alt": "Damaged asphalt road with deep pothole"
+    },
+    "karachi_street": {
+      "url": "https://images.unsplash.com/photo-1759323050357-9dd486fafb44?q=80&w=1000&auto=format&fit=crop",
+      "alt": "Karachi street view"
+    }
+  },
+  "instructions_to_main_agent": "Build 'Saaf Sarak, Saaf Karachi' with crisp brutalist/clean utility aesthetics. Implement the 3 roles (Citizen, Mayor, Contractor) via an easy role picker with seeded sample data. Ensure all AI analysis steps (severity estimation, before/after verification) feature realistic mock states with loading spinners and badge confirmations. Maintain WCAG AAA contrast, exact touch targets (>= 44pt), sticky primary CTAs, and zero emojis."
+}

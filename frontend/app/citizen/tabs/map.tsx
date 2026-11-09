@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
-import { FlatList, View } from "react-native";
+import { FlatList, RefreshControl, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { api, qk } from "@/src/api";
@@ -13,11 +13,12 @@ import { ScreenHeader } from "@/src/components/ScreenHeader";
 import { SkeletonList } from "@/src/components/SkeletonList";
 import { KARACHI_CENTER, STATUS_FILTERS } from "@/src/components/status-meta";
 import { usesNativeTabs } from "@/src/navigation";
-import { makeStyles, spacing } from "@/src/theme";
+import { makeStyles, spacing, useTheme } from "@/src/theme";
 import type { Report } from "@/src/types";
 
 export default function CityMap() {
   const router = useRouter();
+  const { colors } = useTheme();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
@@ -25,7 +26,7 @@ export default function CityMap() {
   const [filter, setFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({ queryKey: qk.reports("all"), queryFn: () => api.reports() });
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({ queryKey: qk.reports("all"), queryFn: () => api.reports() });
 
   const reports = useMemo(() => {
     const statuses = STATUS_FILTERS.find((f) => f.key === filter)?.statuses;
@@ -67,8 +68,18 @@ export default function CityMap() {
           keyExtractor={(r) => r.id}
           renderItem={({ item }) => <ReportCard report={item} selected={item.id === selectedId} onPress={() => (item.id === selectedId ? router.push(`/citizen/report/${item.id}`) : setSelectedId(item.id))} testID={`map-report-${item.id}`} />}
           contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: bottomChrome + spacing.xl, gap: spacing.md }}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { refetch(); }} tintColor={colors.brandPrimary} />}
           onScrollToIndexFailed={() => {}}
-          ListEmptyComponent={<EmptyState icon="map" title="No reports in this view" subtitle="Try another filter to see more of the city." testID="map-empty" />}
+          ListEmptyComponent={
+            <EmptyState
+              icon={isError ? "cloud-offline" : "map"}
+              title={isError ? "Could not load reports" : "No reports in this view"}
+              subtitle={isError ? "The service is temporarily unavailable. Try again." : "Try another filter to see more of the city."}
+              actionTitle={isError ? "Retry" : undefined}
+              onAction={isError ? () => refetch() : undefined}
+              testID="map-empty"
+            />
+          }
         />
       )}
     </View>

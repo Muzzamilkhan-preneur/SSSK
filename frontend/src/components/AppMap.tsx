@@ -10,9 +10,12 @@ export type AppMapMarker = { id: string; lat: number; lng: number; status?: Repo
 export type AppMapProps = {
   lat: number;
   lng: number;
+  selectedPoint?: { lat: number; lng: number } | null;
   markers?: AppMapMarker[];
   selectedId?: string | null;
   pickable?: boolean; // tap / drag to place the single pin
+  markerVisible?: boolean;
+  followCenter?: boolean;
   pannable?: boolean; // drag & zoom
   onSelect?: (lat: number, lng: number) => void;
   onMarkerPress?: (id: string) => void;
@@ -21,15 +24,16 @@ export type AppMapProps = {
   testID?: string;
 };
 
-export function AppMap({ lat, lng, markers = [], selectedId, pickable = false, pannable = false, onSelect, onMarkerPress, height = 220, style, testID }: AppMapProps) {
+export function AppMap({ lat, lng, selectedPoint, markers = [], selectedId, pickable = false, markerVisible = true, followCenter = true, pannable = false, onSelect, onMarkerPress, height = 220, style, testID }: AppMapProps) {
   const { colors } = useTheme();
   const ref = useRef<MapView>(null);
   const movable = pickable || pannable;
 
   // Follow the focus point smoothly (e.g. when a report is tapped in the list).
   useEffect(() => {
+    if (!followCenter) return;
     ref.current?.animateToRegion({ latitude: lat, longitude: lng, latitudeDelta: 0.02, longitudeDelta: 0.02 }, 250);
-  }, [lat, lng]);
+  }, [followCenter, lat, lng]);
 
   return (
     <MapView
@@ -44,14 +48,14 @@ export function AppMap({ lat, lng, markers = [], selectedId, pickable = false, p
       pitchEnabled={false}
       toolbarEnabled={false}
     >
-      {markers.length === 0 ? (
+      {markers.length === 0 ? markerVisible ? (
         <Marker
-          coordinate={{ latitude: lat, longitude: lng }}
+          coordinate={{ latitude: selectedPoint?.lat ?? lat, longitude: selectedPoint?.lng ?? lng }}
           draggable={pickable}
-          pinColor={colors.brandPrimary}
+          pinColor={pickable ? colors.success : colors.brandPrimary}
           onDragEnd={(e) => onSelect?.(e.nativeEvent.coordinate.latitude, e.nativeEvent.coordinate.longitude)}
         />
-      ) : (
+      ) : null : (
         markers.map((m) => (
           <Marker
             key={`${m.id}-${m.id === selectedId ? "sel" : "n"}`}
