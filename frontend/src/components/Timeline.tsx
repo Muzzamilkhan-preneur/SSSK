@@ -1,8 +1,7 @@
 import dayjs from "dayjs";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import Animated, { FadeIn, FadeInDown, LinearTransition, ReduceMotion, StretchInY, useReducedMotion } from "react-native-reanimated";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import { useState } from "react";
 
 import { Kicker } from "@/src/components/Card";
 import { statusMeta } from "@/src/components/status-meta";
@@ -27,28 +26,18 @@ export function ProgressTimeline({
   const { colors } = useTheme();
   const styles = useStyles();
   const reduceMotion = useReducedMotion();
-  const [expanded, setExpanded] = useState(false);
-  const visibleEvents = expanded ? events : events.slice(0, 3);
+  const completedCount = events.filter((event) => event.completed).length;
+  const currentIndex = events.findIndex((event) => !event.completed);
 
   return (
     <View testID="report-progress-timeline">
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ expanded }}
-        onPress={() => setExpanded((value) => !value)}
-        style={styles.progressHeader}
-        testID="report-timeline-toggle"
-      >
+      <View style={styles.progressHeader}>
         <Kicker icon="time">Report activity</Kicker>
-        <Ionicons
-          name={expanded ? "chevron-up" : "chevron-down"}
-          size={20}
-          color={colors.onSurfaceSecondary}
-        />
-      </Pressable>
+        <Text style={styles.progressCount}>{completedCount}/{events.length} complete</Text>
+      </View>
       <View style={styles.progressList} testID="report-timeline-details">
-        {visibleEvents.map((event, index) => {
-          const current = !event.completed && visibleEvents.findIndex((item) => !item.completed) === index;
+        {events.map((event, index) => {
+          const current = index === currentIndex;
           const color = event.completed ? colors.success : current ? colors.brandPrimary : colors.muted;
           return (
             <Animated.View
@@ -59,7 +48,7 @@ export function ProgressTimeline({
                   .reduceMotion(ReduceMotion.System)
                 : undefined}
               layout={animated ? LinearTransition.duration(180).reduceMotion(ReduceMotion.System) : undefined}
-              style={[styles.progressRow, current && styles.currentProgressRow]}
+              style={styles.progressRow}
             >
               <View style={styles.progressRail}>
                 <View
@@ -72,12 +61,12 @@ export function ProgressTimeline({
                   ]}
                 >
                   {event.completed ? (
-                    <Ionicons name="checkmark" size={15} color={colors.onSuccess} />
+                    <Ionicons name="checkmark" size={13} color={colors.onSuccess} />
                   ) : current ? (
                     <View style={[styles.currentDot, { backgroundColor: colors.brandPrimary }]} />
                   ) : null}
                 </View>
-                {index < visibleEvents.length - 1 ? (
+                {index < events.length - 1 ? (
                   <Animated.View
                     entering={animated
                       ? StretchInY.duration(reduceMotion ? 0 : 180)
@@ -86,13 +75,13 @@ export function ProgressTimeline({
                       : undefined}
                     style={[
                       styles.progressLine,
-                      { backgroundColor: visibleEvents[index + 1].completed ? colors.success : colors.divider },
+                      { backgroundColor: events[index + 1].completed ? colors.success : colors.divider },
                     ]}
                   />
                 ) : null}
               </View>
-              <View style={[styles.progressBody, current && styles.currentProgressBody]}>
-                <Text style={[styles.progressLabel, !event.completed && styles.incompleteLabel]}>
+              <View style={styles.progressBody}>
+                <Text style={[styles.progressLabel, current && styles.currentProgressLabel, !event.completed && !current && styles.incompleteLabel]}>
                   {event.label}
                 </Text>
                 {event.note ? <Text style={styles.progressNote}>{event.note}</Text> : null}
@@ -161,74 +150,48 @@ export function Timeline({ events, testID, animated = false }: { events: Timelin
 }
 
 const useStyles = makeStyles((colors) => ({
-  wrap: {
-    gap: 0,
-  },
+  wrap: { gap: 0 },
   progressHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.sm,
-    paddingVertical: spacing.sm,
+    paddingBottom: spacing.sm,
   },
-  progressList: {
-    paddingTop: spacing.sm,
-  },
-  progressRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  currentProgressRow: {
-    alignItems: "flex-start",
-  },
-  progressRail: {
-    alignItems: "center",
-    width: 30,
-  },
+  progressCount: { fontFamily: fonts.semibold, fontSize: 12, color: colors.onSurfaceTertiary },
+  progressList: { paddingTop: spacing.xs },
+  progressRow: { flexDirection: "row", gap: spacing.sm },
+  progressRail: { alignItems: "center", width: 24 },
   progressDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
-  currentDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  progressLine: {
-    width: 2,
-    flex: 1,
-    marginVertical: 2,
-  },
+  currentDot: { width: 7, height: 7, borderRadius: 4 },
+  progressLine: { width: 2, flex: 1, marginVertical: 2 },
   progressBody: {
     flex: 1,
-    paddingBottom: spacing.lg,
-    gap: 3,
-  },
-  currentProgressBody: {
-    backgroundColor: withAlpha(colors.brandPrimary, 0.1),
-    borderRadius: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.md,
+    paddingBottom: spacing.md,
+    gap: 2,
   },
   progressLabel: {
     fontFamily: fonts.semibold,
-    fontSize: 15,
+    fontSize: 14,
     color: colors.onSurface,
   },
+  currentProgressLabel: { color: colors.brandPrimary },
   progressNote: {
     fontFamily: fonts.text,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 17,
     color: colors.onSurfaceSecondary,
   },
   progressTime: {
     fontFamily: fonts.text,
-    fontSize: 12,
+    fontSize: 11,
     color: colors.muted,
   },
   row: {

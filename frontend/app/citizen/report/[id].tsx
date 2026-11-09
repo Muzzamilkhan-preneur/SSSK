@@ -8,6 +8,7 @@ import { api, qk } from "@/src/api";
 import { EmptyState } from "@/src/components/EmptyState";
 import { ReportBody } from "@/src/components/ReportBody";
 import { ScreenHeader } from "@/src/components/ScreenHeader";
+import { useSession } from "@/src/session";
 import { makeStyles, spacing, useTheme } from "@/src/theme";
 
 export default function ReportDetail() {
@@ -17,6 +18,7 @@ export default function ReportDetail() {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
+  const session = useSession();
 
   const { data: report, isLoading, isError, refetch } = useQuery({ queryKey: qk.report(String(id)), queryFn: () => api.report(String(id)), enabled: !!id });
   const back = () => (router.canGoBack() ? router.back() : router.replace("/citizen/tabs/reports"));
@@ -45,6 +47,8 @@ export default function ReportDetail() {
     );
   }
 
+  const citizenPhoto = report.reporters.find((reporter) => reporter.citizen_id === session?.citizen_id)?.image_path;
+
   return (
     <View style={styles.screen}>
       <ScreenHeader
@@ -56,13 +60,14 @@ export default function ReportDetail() {
         <Animated.View entering={FadeIn.duration(reduceMotion ? 0 : 240).reduceMotion(ReduceMotion.System)}>
           <ReportBody
             report={report}
+            imagePath={citizenPhoto}
             communityCount={report.reporter_count}
             compactTimeline
             communityNotice={
               merged
                 ? already
                   ? "You’re already a contributor to this report."
-                  : "This location already has a report. You have been added as a contributor. The AI assessment is based on the original photo."
+                  : "This location already has a report. Your photo is shown here; the AI assessment is based on the original report."
                 : undefined
             }
             animated

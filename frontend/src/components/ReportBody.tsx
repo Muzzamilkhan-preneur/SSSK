@@ -19,6 +19,7 @@ type Props = {
   children?: ReactNode;
   communityCount?: number;
   communityNotice?: string;
+  imagePath?: string | null;
   compactTimeline?: boolean;
   animated?: boolean;
 };
@@ -28,6 +29,7 @@ export function ReportBody({
   children,
   communityCount,
   communityNotice,
+  imagePath,
   compactTimeline = false,
   animated = false,
 }: Props) {
@@ -35,6 +37,7 @@ export function ReportBody({
   const styles = useStyles();
   const reduceMotion = useReducedMotion();
   const [showPhoto, setShowPhoto] = useState(false);
+  const primaryImagePath = imagePath ?? report.image_path;
   const submittedEvent = report.timeline.find((event) => event.label === "Report Submitted");
   const inspectionEvent = report.timeline.find((event) => event.label === "AI Inspection Complete");
   const assignmentEvent = report.timeline.find((event) => event.status === "assigned");
@@ -66,23 +69,27 @@ export function ReportBody({
     {
       label: report.status === "pending_review"
         ? "Awaiting Mayor review"
-        : "Mayor assigns a contractor",
+        : report.status === "rejected"
+          ? "Report rejected"
+          : "Mayor assigns a contractor",
       note: assignmentComplete && report.contractor_name
         ? `Assigned to ${report.contractor_name}`
         : report.status === "pending_review"
           ? "Pending administrative review"
+          : report.status === "rejected"
+            ? "Closed after review"
           : undefined,
       at: assignmentEvent?.at,
       actor: assignmentEvent?.actor,
       completed: assignmentComplete || report.status === "rejected",
     },
-    {
+    ...(report.status === "rejected" ? [] : [{
       label: "Contractor fixes the pothole",
       note: report.status === "rework" ? "More repair work is needed" : undefined,
       at: repairEvent?.at,
       actor: repairEvent?.actor,
       completed: repairComplete,
-    },
+    }]),
   ];
   const entering = (delay = 0) => animated
     ? FadeIn.duration(reduceMotion ? 0 : 240)
@@ -102,7 +109,7 @@ export function ReportBody({
             testID="report-photo-expand"
           >
             <Image
-              source={{ uri: fileUrl(report.image_path) }}
+              source={{ uri: fileUrl(primaryImagePath) }}
               style={[styles.hero, styles.citizenHero]}
               contentFit="cover"
               transition={240}
@@ -114,7 +121,7 @@ export function ReportBody({
           </Pressable>
         ) : (
           <Image
-            source={{ uri: fileUrl(report.image_path) }}
+            source={{ uri: fileUrl(primaryImagePath) }}
             style={styles.hero}
             contentFit="cover"
             transition={240}
@@ -140,7 +147,7 @@ export function ReportBody({
               <Ionicons name="close" size={24} color={colors.onSurfaceInverse} />
             </Pressable>
             <Image
-              source={{ uri: fileUrl(report.image_path) }}
+              source={{ uri: fileUrl(primaryImagePath) }}
               style={styles.photoViewerImage}
               contentFit="contain"
             />
