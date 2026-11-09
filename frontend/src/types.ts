@@ -35,7 +35,13 @@ export type Verification = {
   checks: Finding[];
 };
 
-export type Reporter = { citizen_id: string; name: string; at: string };
+export type Reporter = {
+  citizen_id: string;
+  name: string;
+  at: string;
+  image_path?: string | null;
+  image_hash?: string | null;
+};
 
 export type Report = {
   id: string;

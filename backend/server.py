@@ -105,6 +105,8 @@ class Reporter(BaseModel):
     citizen_id: str
     name: str
     at: datetime = Field(default_factory=utcnow)
+    image_path: Optional[str] = None
+    image_hash: Optional[str] = None
 
 
 class Report(BaseDocument):
@@ -423,7 +425,7 @@ def haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
 
 
 def reverse_geocode(lat: float, lng: float) -> str:
-    key = f"{lat:.4f},{lng:.4f}"
+    key = f"{lat:.6f},{lng:.6f}"
     if key in _geo_cache:
         return _geo_cache[key]
     try:
@@ -433,7 +435,7 @@ def reverse_geocode(lat: float, lng: float) -> str:
                 "lat": lat,
                 "lon": lng,
                 "format": "jsonv2",
-                "zoom": 17,
+                "zoom": 18,
                 "accept-language": "en",
             },
             headers={
@@ -446,6 +448,8 @@ def reverse_geocode(lat: float, lng: float) -> str:
         logger.error("reverse_geocode failed: %s", exc)
         addr = {}
     road = addr.get("road") or addr.get("pedestrian") or addr.get("footway")
+    house_number = addr.get("house_number")
+    street = f"{house_number} {road}" if house_number and road else road or house_number
     area = (
         addr.get("neighbourhood")
         or addr.get("suburb")
@@ -459,7 +463,7 @@ def reverse_geocode(lat: float, lng: float) -> str:
     )
     if area:
         area = area.replace(" District", "").replace(" Division", "")
-    parts = [p for p in (road, area, city) if p]
+    parts = [p for p in (street, area, city) if p]
     label = ", ".join(dict.fromkeys(parts)) or "Karachi"
     _geo_cache[key] = label
     return label
@@ -977,8 +981,32 @@ async def create_report(
                 "report": existing.model_dump(),
             }
 
+        if image_hash == existing.image_hash:
+            contribution_image_path = existing.image_path
+        else:
+            try:
+                contribution_image_path = (
+                    await run_in_threadpool(
+                        put_object,
+                        f"{APP_NAME}/uploads/{citizen_id}/{uuid.uuid4()}.{_ext(image.filename)}",
+                        data,
+                        mime,
+                    )
+                )["path"]
+            except Exception as exc:
+                logger.exception("contributor image storage failed")
+                raise HTTPException(
+                    status_code=503, detail=f"Contributor image storage failed: {exc}"
+                ) from exc
+
         existing.reporters.append(
-            Reporter(citizen_id=citizen_id, name=citizen_name, at=now)
+            Reporter(
+                citizen_id=citizen_id,
+                name=citizen_name,
+                at=now,
+                image_path=contribution_image_path,
+                image_hash=image_hash,
+            )
         )
         existing.reporter_count = max(
             existing.reporter_count + 1, len(existing.reporters)
@@ -1020,7 +1048,15 @@ async def create_report(
     report = Report(
         citizen_id=citizen_id,
         citizen_name=citizen_name,
-        reporters=[Reporter(citizen_id=citizen_id, name=citizen_name, at=now)],
+        reporters=[
+            Reporter(
+                citizen_id=citizen_id,
+                name=citizen_name,
+                at=now,
+                image_path=path,
+                image_hash=image_hash,
+            )
+        ],
         reporter_count=1,
         image_path=path,
         image_hash=image_hash,

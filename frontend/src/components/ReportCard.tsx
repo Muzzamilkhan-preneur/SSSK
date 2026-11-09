@@ -18,11 +18,17 @@ type Props = {
   onPress: () => void;
   selected?: boolean;
   testID?: string;
+  citizenId?: string;
 };
 
-export function ReportCard({ report, onPress, selected = false, testID }: Props) {
+export function ReportCard({ report, onPress, selected = false, testID, citizenId }: Props) {
   const { colors } = useTheme();
   const styles = useStyles();
+  const myContribution = citizenId
+    ? report.reporters.find((reporter) => reporter.citizen_id === citizenId)
+    : undefined;
+  const isContributor = !!citizenId && report.citizen_id !== citizenId && !!myContribution;
+  const thumbnailPath = myContribution?.image_path || report.image_path;
 
   return (
     <Animated.View entering={FadeIn.duration(200)}>
@@ -31,13 +37,15 @@ export function ReportCard({ report, onPress, selected = false, testID }: Props)
         onPress={onPress}
         style={({ pressed }) => [styles.card, selected && styles.cardSelected, pressed && styles.cardPressed]}
       >
-        <Image source={{ uri: fileUrl(report.image_path) }} style={styles.thumb} contentFit="cover" transition={200} recyclingKey={report.id} />
+        <Image source={{ uri: fileUrl(thumbnailPath) }} style={styles.thumb} contentFit="cover" transition={200} recyclingKey={report.id} />
         <View style={styles.mid}>
           <Text numberOfLines={1} style={styles.title}>
             {report.address || "Karachi"}
           </Text>
           <Text numberOfLines={1} style={styles.sub}>
-            {dayjs(report.created_at).fromNow()} · {report.description || "Pothole report"}
+            {isContributor && myContribution
+              ? "Your contribution · " + dayjs(myContribution.at).fromNow()
+              : `${dayjs(report.created_at).fromNow()} · ${report.description || "Pothole report"}`}
           </Text>
           <View style={styles.meta}>
             {report.severity ? <SeverityChip severity={report.severity} /> : null}

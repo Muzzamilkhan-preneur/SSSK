@@ -23,12 +23,12 @@ import Animated, {
 import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { api, qk } from "@/src/api";
-import { InspectionCard } from "@/src/components/AICards";
 import { AppMap } from "@/src/components/AppMap";
 import { Card, Kicker } from "@/src/components/Card";
 import { CheckProgress } from "@/src/components/CheckProgress";
 import { PhotoActions } from "@/src/components/PhotoActions";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
+import { ReportFindingsCard } from "@/src/components/ReportFindingsCard";
 import { ScreenHeader } from "@/src/components/ScreenHeader";
 import { KARACHI_CENTER } from "@/src/components/status-meta";
 import { useSession } from "@/src/session";
@@ -42,6 +42,31 @@ const STEPS = [
   { key: "severity", label: "Assessing severity" },
   { key: "findings", label: "Generating AI findings" },
 ];
+const INSPECTION_MESSAGES = [
+  "Sending your photo for AI inspection…",
+  "Checking the photo for road damage…",
+  "Preparing the inspection results…",
+];
+const SUBMIT_MESSAGES = [
+  "Sending your report…",
+  "Saving the report and location…",
+  "Finishing submission…",
+];
+
+function useRotatingMessage(active: boolean, messages: string[]) {
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    if (!active) {
+      setIndex(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setIndex((current) => (current + 1) % messages.length);
+    }, 1800);
+    return () => clearInterval(timer);
+  }, [active, messages.length]);
+  return messages[index] ?? messages[0];
+}
 
 function InspectionPhoto({ uri, scanning }: { uri: string; scanning: boolean }) {
   const styles = useStyles();
@@ -106,6 +131,7 @@ export default function NewReport() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [desc, setDesc] = useState("");
   const [submitErr, setSubmitErr] = useState<string | null>(null);
+  const inspectionMessage = useRotatingMessage(analyzing, INSPECTION_MESSAGES);
 
   // Live address as the pin moves (debounced).
   useEffect(() => {
@@ -194,6 +220,7 @@ export default function NewReport() {
     },
     onError: (e) => setSubmitErr(e.message || "Could not submit report"),
   });
+  const submitMessage = useRotatingMessage(submit.isPending, SUBMIT_MESSAGES);
 
   const onPicked = async (file: LocalFile) => {
     const requestId = ++analysisRequest.current;
@@ -227,7 +254,7 @@ export default function NewReport() {
         setLocationError("Location access was denied. Drop the pin manually or allow access in Settings.");
         return;
       }
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
       const current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       setMapFocus(current);
       setCoords(current);
@@ -282,7 +309,7 @@ export default function NewReport() {
         }
       />
 
-      <KeyboardAwareScrollView bottomOffset={110} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 140 }]}>
+      <KeyboardAwareScrollView bottomOffset={110} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         {step === "photo" ? (
           <Animated.View
             key="photo"
@@ -304,7 +331,7 @@ export default function NewReport() {
                 title="AI inspection"
                 steps={STEPS}
                 pending={analyzing}
-                pendingLabel="Analyzing road-damage photo…"
+                pendingLabel={inspectionMessage}
                 pendingSteps={false}
                 results={results}
                 revealedCount={analyzing ? 0 : revealedStageCount}
@@ -323,7 +350,7 @@ export default function NewReport() {
             {usable && analysis ? (
               <>
                 {inspectionReady && ((analysis.findings?.length ?? 0) > 0 || !!analysis.severity) ? (
-                  <InspectionCard severity={analysis.severity} findings={analysis.findings ?? []} animated />
+                  <ReportFindingsCard severity={analysis.severity} findings={analysis.findings ?? []} />
                 ) : null}
                 <PrimaryButton title="Confirm Location" icon="arrow-forward" testID="confirm-location-btn" onPress={() => setStep("location")} />
                 <PrimaryButton title="Use a different photo" variant="ghost" small testID="change-photo-btn" onPress={() => { analysisRequest.current += 1; setPhoto(null); setAnalysis(null); setAnalysisError(null); setSubmitErr(null); }} />
@@ -402,21 +429,21 @@ export default function NewReport() {
 
       {step === "location" && !nearbyMatch ? (
         <KeyboardStickyView>
-          <View style={[styles.sticky, { paddingBottom: insets.bottom + spacing.md }]}>
+          <View style={[styles.sticky, { paddingBottom: insets.bottom + spacing.xs }]}>
             {submitErr ? <Text style={styles.submitErr} testID="submit-error">{submitErr}</Text> : null}
-            <PrimaryButton title="Submit Report" icon="send" testID="report-submit-btn" loading={submit.isPending} disabled={!locationValid} onPress={() => { setSubmitErr(null); submit.mutate(); }} />
+            <PrimaryButton title={submit.isPending ? submitMessage : "Submit Report"} icon="send" testID="report-submit-btn" loading={submit.isPending} disabled={!locationValid} onPress={() => { setSubmitErr(null); submit.mutate(); }} />
           </View>
         </KeyboardStickyView>
       ) : null}
       {step === "location" && nearbyMatch ? (
         <KeyboardStickyView>
-          <View style={[styles.sticky, { paddingBottom: insets.bottom + spacing.md }]}>
+          <View style={[styles.sticky, { paddingBottom: insets.bottom + spacing.xs }]}>
             {submitErr ? <Text style={styles.submitErr} testID="submit-error">{submitErr}</Text> : null}
             <PrimaryButton
               title={
                 nearbyMatch.already_reported
-                  ? "View Existing Report"
-                  : "Same Pothole"
+                    ? "View Existing Report"
+                      : submit.isPending ? submitMessage : "Same Pothole"
               }
               icon="people"
               testID="confirm-nearby-match-btn"

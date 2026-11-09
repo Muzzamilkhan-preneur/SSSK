@@ -51,7 +51,7 @@ export default function CitizenReports() {
         <FlatList
           data={filtered}
           keyExtractor={(r) => r.id}
-          renderItem={({ item, index }) => <ReportCard report={item} onPress={() => router.push(`/citizen/report/${item.id}`)} testID={`citizen-report-card-${index}`} />}
+          renderItem={({ item, index }) => <ReportCard report={item} citizenId={session?.citizen_id} onPress={() => router.push(`/citizen/report/${item.id}`)} testID={`citizen-report-card-${index}`} />}
           contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: bottomChrome + 96, gap: spacing.md }}
           ListEmptyComponent={
             <EmptyState

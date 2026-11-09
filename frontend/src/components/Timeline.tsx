@@ -48,7 +48,8 @@ export function ProgressTimeline({
       </Pressable>
       <View style={styles.progressList} testID="report-timeline-details">
         {visibleEvents.map((event, index) => {
-          const color = event.completed ? colors.success : colors.muted;
+          const current = !event.completed && visibleEvents.findIndex((item) => !item.completed) === index;
+          const color = event.completed ? colors.success : current ? colors.brandPrimary : colors.muted;
           return (
             <Animated.View
               key={`${index}-${event.label}`}
@@ -58,7 +59,7 @@ export function ProgressTimeline({
                   .reduceMotion(ReduceMotion.System)
                 : undefined}
               layout={animated ? LinearTransition.duration(180).reduceMotion(ReduceMotion.System) : undefined}
-              style={styles.progressRow}
+              style={[styles.progressRow, current && styles.currentProgressRow]}
             >
               <View style={styles.progressRail}>
                 <View
@@ -72,6 +73,8 @@ export function ProgressTimeline({
                 >
                   {event.completed ? (
                     <Ionicons name="checkmark" size={15} color={colors.onSuccess} />
+                  ) : current ? (
+                    <View style={[styles.currentDot, { backgroundColor: colors.brandPrimary }]} />
                   ) : null}
                 </View>
                 {index < visibleEvents.length - 1 ? (
@@ -88,7 +91,7 @@ export function ProgressTimeline({
                   />
                 ) : null}
               </View>
-              <View style={styles.progressBody}>
+              <View style={[styles.progressBody, current && styles.currentProgressBody]}>
                 <Text style={[styles.progressLabel, !event.completed && styles.incompleteLabel]}>
                   {event.label}
                 </Text>
@@ -175,6 +178,9 @@ const useStyles = makeStyles((colors) => ({
     flexDirection: "row",
     gap: spacing.md,
   },
+  currentProgressRow: {
+    alignItems: "flex-start",
+  },
   progressRail: {
     alignItems: "center",
     width: 30,
@@ -187,6 +193,11 @@ const useStyles = makeStyles((colors) => ({
     alignItems: "center",
     justifyContent: "center",
   },
+  currentDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
   progressLine: {
     width: 2,
     flex: 1,
@@ -196,6 +207,13 @@ const useStyles = makeStyles((colors) => ({
     flex: 1,
     paddingBottom: spacing.lg,
     gap: 3,
+  },
+  currentProgressBody: {
+    backgroundColor: withAlpha(colors.brandPrimary, 0.1),
+    borderRadius: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
   },
   progressLabel: {
     fontFamily: fonts.semibold,

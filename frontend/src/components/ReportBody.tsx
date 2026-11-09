@@ -6,7 +6,8 @@ import { useState } from "react";
 
 import { fileUrl } from "@/src/api";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import { Card, Kicker } from "@/src/components/Card";
+import { Kicker } from "@/src/components/Card";
+import { ReportFindingsCard } from "@/src/components/ReportFindingsCard";
 import { SeverityChip } from "@/src/components/SeverityChip";
 import { StatusBadge } from "@/src/components/StatusBadge";
 import { ProgressTimeline, Timeline } from "@/src/components/Timeline";
@@ -63,15 +64,17 @@ export function ReportBody({
         }]
       : []),
     {
-      label: "Mayor assigns a contractor",
+      label: report.status === "pending_review"
+        ? "Awaiting Mayor review"
+        : "Mayor assigns a contractor",
       note: assignmentComplete && report.contractor_name
         ? `Assigned to ${report.contractor_name}`
         : report.status === "pending_review"
-          ? "Awaiting Mayor review"
+          ? "Pending administrative review"
           : undefined,
       at: assignmentEvent?.at,
       actor: assignmentEvent?.actor,
-      completed: assignmentComplete,
+      completed: assignmentComplete || report.status === "rejected",
     },
     {
       label: "Contractor fixes the pothole",
@@ -207,17 +210,7 @@ export function ReportBody({
         </Animated.View>
       ) : null}
       {report.findings.length ? (
-        <Card testID="report-ai-findings">
-          <Kicker icon="sparkles">What the AI saw</Kicker>
-          <View style={styles.findingsList}>
-            {report.findings.map((finding) => (
-              <View key={finding.key} style={styles.findingRow}>
-                <Ionicons name="checkmark-circle" size={18} color={colors.success} />
-                <Text style={styles.findingText}>{finding.label}</Text>
-              </View>
-            ))}
-          </View>
-        </Card>
+        <ReportFindingsCard findings={report.findings} severity={report.severity} />
       ) : null}
       {report.description ? (
         <Animated.View entering={entering(180)} style={styles.section}>
@@ -293,9 +286,6 @@ const useStyles = makeStyles((colors) => ({
   countRow: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
   count: { fontFamily: fonts.bold, fontSize: 22, color: colors.onSurface },
   communityText: { flex: 1, fontFamily: fonts.text, fontSize: 15, lineHeight: 21, color: colors.onSurface },
-  findingsList: { gap: spacing.md },
-  findingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  findingText: { flex: 1, fontFamily: fonts.text, fontSize: 14, lineHeight: 20, color: colors.onSurface },
   notice: {
     fontFamily: fonts.medium,
     fontSize: 12,
