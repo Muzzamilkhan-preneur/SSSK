@@ -19,12 +19,14 @@ class DecisionsUnavailable(Exception):
     """The OpenAI provider could not produce a valid answer."""
 
 
-def _jpeg_bytes(data: bytes) -> bytes:
+def _jpeg_bytes(data: bytes, max_size: int = 1200, quality: int = 82) -> bytes:
     try:
         with Image.open(BytesIO(data)) as image:
-            image.thumbnail((1200, 1200))
+            image.thumbnail((max_size, max_size))
             output = BytesIO()
-            image.convert("RGB").save(output, format="JPEG", quality=82, optimize=True)
+            image.convert("RGB").save(
+                output, format="JPEG", quality=quality, optimize=True
+            )
             return output.getvalue()
     except (UnidentifiedImageError, OSError) as exc:
         raise DecisionsUnavailable("AI_INVALID_IMAGE") from exc
@@ -81,6 +83,11 @@ def _prompt(questions: list[dict]) -> str:
                 for index, item in enumerate(q.get("levels", []))
             )
             detail += f"\n  Score levels: {levels}"
+        elif q["type"] == "observations":
+            detail += (
+                "\n  Return 3 or 4 concise visible-evidence factors in an items array. "
+                "Each item must contain label and confidence (0 to 1)."
+            )
         formatted_questions.append(detail)
     details = "\n".join(formatted_questions)
     return (
@@ -89,7 +96,9 @@ def _prompt(questions: list[dict]) -> str:
         "For choice, return {\"type\":\"choice\",\"choice\":string,"
         "\"confidence\":number}. For score, return {\"type\":\"score\","
         "\"score\":integer,\"probabilities\":[{\"value\":integer,"
-        "\"probability\":number}]}. For score questions, use the numbered "
+        "\"probability\":number}]}. For observations, return "
+        "{\"type\":\"observations\",\"items\":[{\"label\":string,"
+        "\"confidence\":number}]}. For score questions, use the numbered "
         "levels provided and make probabilities reflect the visible evidence. "
         "Do not include markdown.\n\nQuestions:\n"
         + details
@@ -174,13 +183,18 @@ def verify_selfie(data: bytes, mime: str = "image/jpeg") -> dict[str, float]:
     key = os.environ.get("OPENAI_API_KEY") or ""
     if not key:
         raise DecisionsUnavailable("AI_AUTH_ERROR")
-    data = _jpeg_bytes(data)
+    data = _jpeg_bytes(data, max_size=800, quality=72)
     mime = "image/jpeg"
     prompt = (
         "Assess this citizen registration selfie. Return only JSON with exactly "
         "these numeric keys from 0 to 1: has_face, single_person, face_clear, "
         "real_capture. The last key means a direct camera photo of a real person, "
-        "not a screen, print, poster, drawing, or cartoon."
+        "not a screen, print, poster, drawing, or cartoon. For face_clear, use "
+        "only whether the person's face is sufficiently visible and in focus for "
+        "this basic check: the eyes, nose, and mouth should be reasonably visible "
+        "with usable lighting. Do not penalize a neutral expression, hairstyle, "
+        "ordinary camera softness, background clutter, or a slightly off-center "
+        "face. If those facial features are plainly visible, return at least 0.7."
     )
     result = _request(
         {

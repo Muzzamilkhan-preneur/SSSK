@@ -144,11 +144,13 @@ class Contractor(BaseDocument):
     specialty: str = ""
     rating: float = 4.5
     completed_jobs: int = 0
+    is_verified: bool = False
 
 
 class Citizen(BaseDocument):
     name: str
     selfie_path: Optional[str] = None
+    selfie_verified: bool = False
     created_at: datetime = Field(default_factory=utcnow)
 
 
@@ -185,7 +187,6 @@ SEVERITY_LEVELS = [
         "A very deep or large crater, collapsed road, open or broken manhole, or damage across most of the lane. Serious accident risk for two-wheelers and cars.",
     ),
 ]
-SEVERITY_RANK = {key: index for index, (key, _, _) in enumerate(SEVERITY_LEVELS)}
 DAMAGE_TYPES = [
     ("pothole", "A bowl-shaped hole where the road surface has broken away."),
     ("cracking", "Cracks or alligator cracking without a real hole."),
@@ -194,44 +195,11 @@ DAMAGE_TYPES = [
     ("waterlogged", "A damaged patch mostly hidden under standing water."),
     ("other", "Some other kind of road surface damage."),
 ]
-DAMAGE_LABELS = {
-    "pothole": "Pothole",
-    "cracking": "Cracking",
-    "sunken_road": "Sunken road",
-    "broken_manhole": "Broken manhole",
-    "waterlogged": "Water-logged patch",
-    "other": "Other damage",
-}
-POTHOLE_PREDICATES = [
-    (
-        "deep",
-        "Deep enough to damage a vehicle",
-        "Is the damage deep enough to damage a vehicle tyre or wheel?",
-    ),
-    ("water", "Water collected inside", "Is water collected inside the damaged area?"),
-    (
-        "exposed_base",
-        "Exposed gravel or base layer",
-        "Is gravel, stone or the base layer under the asphalt exposed?",
-    ),
-    (
-        "wide",
-        "Spans more than half the lane",
-        "Does the damage span more than half the width of a traffic lane?",
-    ),
-    (
-        "near_crossing",
-        "Near a crossing, school or junction",
-        "Is the damage visibly near a pedestrian crossing, school, junction or intersection? Answer no if this cannot be seen in the photo.",
-    ),
-]
-
-
 def analyze_road_image(data: bytes, mime: str) -> dict:
     questions = [
         predicate(
             "is_road_damage",
-            "Does this photo show damaged road or street surface, such as a pothole, cracking, a sunken patch, a broken manhole or a water-logged damaged patch? Answer no for selfies, people, vehicles, walls, indoor scenes, screens or undamaged roads.",
+            "Does this photo show damaged road or street surface, such as a pothole, cracking, a sunken patch, a broken manhole or a water-logged damaged patch? Illegal garbage dumps, roadside rubbish, construction debris, and overflowing bins are not road damage; answer no unless the road surface itself is visibly damaged. Also answer no for selfies, people, vehicles, walls, indoor scenes, screens or undamaged roads.",
         ),
         score(
             "severity",
@@ -239,13 +207,20 @@ def analyze_road_image(data: bytes, mime: str) -> dict:
             [(lbl, desc) for _, lbl, desc in SEVERITY_LEVELS],
         ),
         choice("damage_type", "What type of road damage is this?", DAMAGE_TYPES),
-        *[predicate(key, q) for key, _, q in POTHOLE_PREDICATES],
+        {
+            "type": "observations",
+            "name": "observations",
+            "instructions": (
+                "For a confirmed road-damage image, describe 3 or 4 distinct "
+                "visible factors that support the assessment and indicate severity. "
+                "Use only evidence visible in the image; do not infer hidden causes, "
+                "exact dimensions, or nearby hazards that cannot be seen."
+            ),
+        },
     ]
     a = decide(
         [
-            text_part(
-                "Citizen photo submitted to the Karachi road-maintenance authority."
-            ),
+            text_part("Citizen photo submitted for a road-damage assessment in Karachi."),
             image_part(data, mime),
         ],
         questions,
@@ -293,32 +268,33 @@ def analyze_road_image(data: bytes, mime: str) -> dict:
     except (TypeError, ValueError):
         dt_conf = 0.0
 
-    # A model's broad severity label can understate specific visible hazards.
-    # Escalate only when its own focused checks provide strong evidence.
-    deep_p = prob(a, "deep")
-    exposed_base_p = prob(a, "exposed_base")
-    wide_p = prob(a, "wide")
-    if dt_value == "broken_manhole" and dt_conf >= 0.6:
-        top_value = max(top_value, 3)
-    elif wide_p >= 0.75 and deep_p >= 0.65:
-        top_value = max(top_value, 3)
-    elif deep_p >= 0.65 or exposed_base_p >= 0.65 or wide_p >= 0.65:
-        top_value = max(top_value, 2)
-
     sev_key = SEVERITY_LEVELS[top_value][0]
     severity_score = max(model_severity_score, top_value / (len(SEVERITY_LEVELS) - 1))
 
-    findings = [
-        {
-            "key": "damage_type",
-            "label": f"Type of damage: {DAMAGE_LABELS.get(dt_value, 'Other damage')}",
-            "probability": round(dt_conf, 3),
-        }
-    ]
-    findings += [
-        {"key": key, "label": label, "probability": round(prob(a, key), 3)}
-        for key, label, _ in POTHOLE_PREDICATES
-    ]
+    observations = a.get("observations")
+    if not isinstance(observations, dict) or observations.get("type") != "observations":
+        raise DecisionsUnavailable("AI_INVALID_RESPONSE")
+    items = observations.get("items")
+    if not isinstance(items, list) or not 3 <= len(items) <= 4:
+        raise DecisionsUnavailable("AI_INVALID_RESPONSE")
+    findings = []
+    for index, item in enumerate(items):
+        if not isinstance(item, dict) or not isinstance(item.get("label"), str):
+            raise DecisionsUnavailable("AI_INVALID_RESPONSE")
+        label = item["label"].strip()
+        try:
+            confidence = float(item["confidence"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise DecisionsUnavailable("AI_INVALID_RESPONSE") from exc
+        if not label or not 0 <= confidence <= 1:
+            raise DecisionsUnavailable("AI_INVALID_RESPONSE")
+        findings.append(
+            {
+                "key": f"observation_{index + 1}",
+                "label": label,
+                "probability": round(confidence, 3),
+            }
+        )
 
     result.update(
         {
@@ -353,9 +329,9 @@ SELFIE_CHECKS = [
     ),
     (
         "face_clear",
-        "Face clearly visible",
-        "Face isn't clearly visible. Face the camera in good light",
-        "Is the face clearly visible, in focus, reasonably lit and not covered by a mask, hand or dark sunglasses?",
+        "Face is clear enough",
+        "The face is difficult to assess. Try brighter light and face the camera",
+        "Are the eyes, nose and mouth reasonably visible and in focus with usable lighting? Do not require a perfectly centered face or high-resolution image.",
     ),
     (
         "real_capture",
@@ -371,7 +347,8 @@ def check_selfie(data: bytes, mime: str) -> dict:
     checks, reason = [], None
     for key, label, fail_reason, _ in SELFIE_CHECKS:
         p = probabilities[key]
-        passed = p >= 0.6
+        threshold = 0.5 if key == "face_clear" else 0.6
+        passed = p >= threshold
         checks.append(
             {"key": key, "label": label, "probability": round(p, 3), "passed": passed}
         )
@@ -508,13 +485,20 @@ async def load_report(report_id: str) -> Report:
     return Report.from_firestore(doc)
 
 
-async def photo_already_used(image_hash: str) -> bool:
-    return bool(
-        await db.reports.find_one(
-            {"$or": [{"image_hash": image_hash}, {"extra_hashes": image_hash}]},
-            {"_id": 1},
-        )
-    )
+def nearby_report_matches(
+    lat: float, lng: float, documents: list[dict]
+):
+    matches = []
+    for document in documents:
+        try:
+            distance_m = haversine_m(
+                lat, lng, float(document["lat"]), float(document["lng"])
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+        if distance_m <= MERGE_RADIUS_M:
+            matches.append((distance_m, document))
+    return sorted(matches, key=lambda item: item[0])
 
 
 # --- Seed --------------------------------------------------------------------
@@ -526,6 +510,7 @@ SEED_CONTRACTORS = [
         "specialty": "Asphalting & patch work",
         "rating": 4.6,
         "completed_jobs": 128,
+        "is_verified": True,
     },
     {
         "name": "Indus Infra Solutions",
@@ -534,6 +519,7 @@ SEED_CONTRACTORS = [
         "specialty": "Road milling & resurfacing",
         "rating": 4.4,
         "completed_jobs": 87,
+        "is_verified": True,
     },
     {
         "name": "Metro Asphalt Works",
@@ -542,6 +528,7 @@ SEED_CONTRACTORS = [
         "specialty": "Emergency pothole crews",
         "rating": 4.8,
         "completed_jobs": 204,
+        "is_verified": True,
     },
 ]
 SEED_CITIZENS = ["Ahmed Raza", "Sana Qureshi", "Bilal Khan"]
@@ -597,6 +584,15 @@ SEED_REPORTS = [
 
 async def seed_demo_data() -> None:
     try:
+        for contractor_spec in SEED_CONTRACTORS:
+            contractor_doc = await db.contractors.find_one(
+                {"name": contractor_spec["name"]}
+            )
+            if contractor_doc and "is_verified" not in contractor_doc:
+                await db.contractors.update_one(
+                    {"_id": contractor_doc["_id"]},
+                    {"$set": {"is_verified": True}},
+                )
         missing = [
             spec["file"]
             for spec in SEED_REPORTS
@@ -821,7 +817,7 @@ async def register_citizen(name: str = Form(...), image: UploadFile = File(...))
         raise HTTPException(status_code=503, detail=AI_UNAVAILABLE)
     if not result["passed"]:
         return {**result, "citizen": None}
-    citizen = Citizen(name=name)
+    citizen = Citizen(name=name, selfie_verified=True)
     try:
         res = await db.citizens.insert_one(citizen.to_firestore())
         citizen.id = str(res.inserted_id)
@@ -846,16 +842,31 @@ async def register_citizen(name: str = Form(...), image: UploadFile = File(...))
     return {**result, "citizen": citizen.model_dump()}
 
 
+@api_router.post("/citizens/register-without-selfie")
+async def register_citizen_without_selfie(name: str = Form(...)):
+    name = name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name is required")
+    citizen = Citizen(name=name, selfie_verified=False)
+    try:
+        res = await db.citizens.insert_one(citizen.to_firestore())
+    except Exception as exc:
+        logger.exception("unverified citizen persistence failed")
+        raise HTTPException(
+            status_code=503, detail="Profile could not be saved. Please try again."
+        ) from exc
+    citizen.id = str(res.inserted_id)
+    return {"citizen": citizen.model_dump()}
+
+
 # --- AI analysis (no DB write) ----------------------------------------------
 @api_router.post("/ai/analyze-pothole")
 async def analyze_pothole(image: UploadFile = File(...)):
     data = await image.read()
     if not data:
         raise HTTPException(status_code=400, detail="Empty image")
-    if await photo_already_used(hashlib.sha256(data).hexdigest()):
-        return {"duplicate_photo": True, "is_road_damage": True}
     try:
-        result = await run_in_threadpool(
+        return await run_in_threadpool(
             analyze_road_image, data, image.content_type or "image/jpeg"
         )
     except DecisionsUnavailable as exc:
@@ -863,7 +874,6 @@ async def analyze_pothole(image: UploadFile = File(...)):
     except Exception:
         logger.exception("pothole analysis failed unexpectedly")
         raise HTTPException(status_code=503, detail="AI_INVALID_RESPONSE")
-    return {**result, "duplicate_photo": False}
 
 
 # --- Reports -----------------------------------------------------------------
@@ -881,8 +891,6 @@ async def create_report(
     if not data:
         raise HTTPException(status_code=400, detail="Empty image")
     image_hash = hashlib.sha256(data).hexdigest()
-    if await photo_already_used(image_hash):
-        raise HTTPException(status_code=409, detail="This photo was already submitted.")
 
     now = utcnow()
     mime = image.content_type or "image/jpeg"
@@ -904,7 +912,67 @@ async def create_report(
             detail="This doesn't look like road damage. Please photograph the pothole.",
         )
 
-    # Preserve the submitted evidence before considering a duplicate merge.
+    open_docs = await db.reports.find(
+        {"status": {"$in": OPEN_STATUSES}}
+    ).to_list(1000)
+    nearby = nearby_report_matches(lat, lng, open_docs)
+    if nearby:
+        existing = Report.from_firestore(nearby[0][1])
+        already_reported = existing.citizen_id == citizen_id or any(
+            reporter.citizen_id == citizen_id for reporter in existing.reporters
+        )
+        if already_reported:
+            return {
+                "merged": True,
+                "already_reported": True,
+                "report": existing.model_dump(),
+            }
+
+        evidence_added = (
+            image_hash != existing.image_hash and image_hash not in existing.extra_hashes
+        )
+        if evidence_added:
+            try:
+                path = (
+                    await run_in_threadpool(
+                        put_object,
+                        f"{APP_NAME}/uploads/{citizen_id}/{uuid.uuid4()}.{_ext(image.filename)}",
+                        data,
+                        mime,
+                    )
+                )["path"]
+            except Exception as exc:
+                logger.exception("report image archival failed")
+                raise HTTPException(
+                    status_code=503, detail=f"Report image storage failed: {exc}"
+                ) from exc
+            existing.extra_hashes.append(image_hash)
+            existing.extra_image_paths.append(path)
+
+        existing.reporters.append(
+            Reporter(citizen_id=citizen_id, name=citizen_name, at=now)
+        )
+        existing.reporter_count = max(
+            existing.reporter_count + 1, len(existing.reporters)
+        )
+        existing.timeline.append(
+            TimelineEvent(
+                status=existing.status,
+                label="Another Citizen Reported This",
+                note=f"{citizen_name} reported this pothole. {existing.reporter_count} citizen profiles have reported it.",
+                actor=citizen_name,
+                at=now,
+            )
+        )
+        existing.updated_at = now
+        await save_report(existing)
+        return {
+            "merged": True,
+            "already_reported": False,
+            "report": existing.model_dump(),
+        }
+
+    # Archive evidence for a new report.
     try:
         path = (
             await run_in_threadpool(
@@ -919,40 +987,6 @@ async def create_report(
         raise HTTPException(
             status_code=503, detail=f"Report image storage failed: {exc}"
         ) from exc
-
-    # Merge only closely co-located reports with the same damage type and a
-    # comparable severity. A nearby but distinct defect needs its own record.
-    open_docs = await db.reports.find({"status": {"$in": OPEN_STATUSES}}).to_list(1000)
-    nearby = sorted(
-        (
-            (haversine_m(lat, lng, d["lat"], d["lng"]), d)
-            for d in open_docs
-            if d.get("damage_type") == a["damage_type"]
-            and abs(SEVERITY_RANK.get(d.get("severity"), 0) - SEVERITY_RANK[a["severity"]]) <= 1
-        ),
-        key=lambda t: t[0],
-    )
-    if nearby and nearby[0][0] <= MERGE_RADIUS_M:
-        existing = Report.from_firestore(nearby[0][1])
-        existing.extra_hashes.append(image_hash)
-        existing.extra_image_paths.append(path)
-        if not any(r.citizen_id == citizen_id for r in existing.reporters):
-            existing.reporters.append(
-                Reporter(citizen_id=citizen_id, name=citizen_name, at=now)
-            )
-            existing.reporter_count = len(existing.reporters)
-            existing.timeline.append(
-                TimelineEvent(
-                    status=existing.status,
-                    label="Another Citizen Reported This",
-                    note=f"{citizen_name} reported the same pothole. {existing.reporter_count} citizens have reported it.",
-                    actor=citizen_name,
-                    at=now,
-                )
-            )
-        existing.updated_at = now
-        await save_report(existing)
-        return {"merged": True, "report": existing.model_dump()}
 
     address = await run_in_threadpool(reverse_geocode, lat, lng)
     report = Report(
