@@ -1,12 +1,12 @@
-import { Image } from "expo-image";
-import { Linking, Modal, Pressable, Text, View } from "react-native";
+import { Linking, Pressable, Text, View } from "react-native";
 import type { ReactNode } from "react";
 import Animated, { FadeIn, ReduceMotion, useReducedMotion } from "react-native-reanimated";
-import { useState } from "react";
 
 import { fileUrl } from "@/src/api";
 import Ionicons from "@react-native-vector-icons/ionicons";
+import { BeforeAfterSlider } from "@/src/components/BeforeAfterSlider";
 import { Kicker } from "@/src/components/Card";
+import { ExpandableImage } from "@/src/components/ExpandableImage";
 import { ReportFindingsCard } from "@/src/components/ReportFindingsCard";
 import { SeverityChip } from "@/src/components/SeverityChip";
 import { StatusBadge } from "@/src/components/StatusBadge";
@@ -36,7 +36,6 @@ export function ReportBody({
   const { colors } = useTheme();
   const styles = useStyles();
   const reduceMotion = useReducedMotion();
-  const [showPhoto, setShowPhoto] = useState(false);
   const primaryImagePath = imagePath ?? report.image_path;
   const submittedEvent = report.timeline.find((event) => event.label === "Report Submitted");
   const inspectionEvent = report.timeline.find((event) => event.label === "AI Inspection Complete");
@@ -91,65 +90,16 @@ export function ReportBody({
   return (
     <View style={styles.wrap} testID="report-body">
       <Animated.View entering={entering()}>
-        {compactTimeline ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Expand report photo"
-            onPress={() => setShowPhoto(true)}
-            style={styles.photoButton}
-            testID="report-photo-expand"
-          >
-            <Image
-              source={{ uri: fileUrl(primaryImagePath) }}
-              style={[styles.hero, styles.citizenHero]}
-              contentFit="cover"
-              transition={240}
-            />
-            <View style={styles.photoButtonLabel}>
-              <Ionicons name="expand-outline" size={15} color={colors.onSurfaceInverse} />
-              <Text style={styles.photoButtonText}>View photo</Text>
-            </View>
-          </Pressable>
+        {report.after_image_path ? (
+          <BeforeAfterSlider beforeUri={fileUrl(primaryImagePath)} afterUri={fileUrl(report.after_image_path)} />
         ) : (
-          <Image
-            source={{ uri: fileUrl(primaryImagePath) }}
-            style={styles.hero}
-            contentFit="cover"
-            transition={240}
+          <ExpandableImage
+            uri={fileUrl(primaryImagePath)}
+            style={[styles.hero, compactTimeline ? styles.citizenHero : null]}
+            testID="report-photo-expand"
           />
         )}
       </Animated.View>
-      {compactTimeline ? (
-        <Modal
-          animationType="fade"
-          onRequestClose={() => setShowPhoto(false)}
-          statusBarTranslucent
-          transparent
-          visible={showPhoto}
-        >
-          <View style={styles.photoViewer} testID="report-photo-viewer">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close photo"
-              onPress={() => setShowPhoto(false)}
-              style={styles.photoClose}
-              testID="report-photo-close"
-            >
-              <Ionicons name="close" size={24} color={colors.onSurfaceInverse} />
-            </Pressable>
-            <Image
-              source={{ uri: fileUrl(primaryImagePath) }}
-              style={styles.photoViewerImage}
-              contentFit="contain"
-            />
-          </View>
-        </Modal>
-      ) : null}
-      {report.after_image_path ? (
-        <Animated.View entering={entering(50)}>
-          <Image source={{ uri: fileUrl(report.after_image_path) }} style={styles.hero} contentFit="cover" />
-        </Animated.View>
-      ) : null}
       <Animated.View key={`${report.severity ?? "none"}-${report.status}`} entering={entering(70)} style={styles.meta}>
         {report.severity ? <SeverityChip severity={report.severity} /> : null}
         <StatusBadge status={report.status} />
@@ -220,41 +170,8 @@ export function ReportBody({
 
 const useStyles = makeStyles((colors) => ({
   wrap: { gap: spacing.lg },
-  hero: { width: "100%", aspectRatio: 4 / 3, borderRadius: 16, backgroundColor: colors.surfaceTertiary },
+  hero: { width: "100%", aspectRatio: 4 / 3, borderRadius: radius.md, backgroundColor: colors.surfaceTertiary },
   citizenHero: { aspectRatio: 1.9 },
-  photoButton: { position: "relative" },
-  photoButtonLabel: {
-    position: "absolute",
-    right: spacing.sm,
-    bottom: spacing.sm,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.pill,
-    backgroundColor: withAlpha(colors.surfaceInverse, 0.78),
-  },
-  photoButtonText: { fontFamily: fonts.medium, fontSize: 12, color: colors.onSurfaceInverse },
-  photoViewer: {
-    flex: 1,
-    justifyContent: "center",
-    backgroundColor: colors.surfaceInverse,
-    padding: spacing.md,
-  },
-  photoViewerImage: { width: "100%", height: "82%" },
-  photoClose: {
-    position: "absolute",
-    zIndex: 1,
-    top: spacing.xl,
-    right: spacing.lg,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: withAlpha(colors.surface, 0.18),
-  },
   meta: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   section: {
     gap: spacing.sm,

@@ -1,11 +1,11 @@
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { Image } from "expo-image";
 import { Pressable, Text, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { fileUrl } from "@/src/api";
+import { ExpandableImage } from "@/src/components/ExpandableImage";
 import { SeverityChip } from "@/src/components/SeverityChip";
 import { StatusBadge } from "@/src/components/StatusBadge";
 import { fonts, makeStyles, radius, spacing, useTheme } from "@/src/theme";
@@ -37,7 +37,7 @@ export function ReportCard({ report, onPress, selected = false, testID, citizenI
         onPress={onPress}
         style={({ pressed }) => [styles.card, selected && styles.cardSelected, pressed && styles.cardPressed]}
       >
-        <Image source={{ uri: fileUrl(thumbnailPath) }} style={styles.thumb} contentFit="cover" transition={200} recyclingKey={report.id} />
+        <ExpandableImage uri={fileUrl(thumbnailPath)} style={styles.thumb} testID={`report-card-photo-${report.id}`} showLabel={false} />
         <View style={styles.mid}>
           <Text numberOfLines={1} style={styles.title}>
             {report.address || "Karachi"}

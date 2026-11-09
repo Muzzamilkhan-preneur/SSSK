@@ -28,12 +28,14 @@ export default function MayorQueue() {
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({ queryKey: qk.reports("mayor"), queryFn: () => api.reports() });
   const { data: stats } = useQuery({ queryKey: qk.stats, queryFn: api.stats });
 
-  // Most dangerous and most-reported first.
   const filtered = useMemo(() => {
     const statuses = FILTERS.find((f) => f.key === filter)?.statuses;
-    return (data ?? [])
+    const reports = (data ?? [])
       .filter((r) => !statuses || (statuses as string[]).includes(r.status))
-      .sort((a, b) => (SEVERITY_RANK[b.severity ?? "minor"] - SEVERITY_RANK[a.severity ?? "minor"]) || b.reporter_count - a.reporter_count);
+      .sort((a, b) => filter === "all"
+        ? Date.parse(b.created_at) - Date.parse(a.created_at)
+        : (SEVERITY_RANK[b.severity ?? "minor"] - SEVERITY_RANK[a.severity ?? "minor"]) || b.reporter_count - a.reporter_count);
+    return reports;
   }, [data, filter]);
 
   const tiles = [

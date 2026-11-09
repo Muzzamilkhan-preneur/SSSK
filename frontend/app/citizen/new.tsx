@@ -6,7 +6,6 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Image } from "expo-image";
 import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboard-controller";
 import Animated, {
   Easing,
@@ -24,6 +23,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { api, qk } from "@/src/api";
 import { AppMap } from "@/src/components/AppMap";
+import { ExpandableImage } from "@/src/components/ExpandableImage";
 import { Card, Kicker } from "@/src/components/Card";
 import { CheckProgress } from "@/src/components/CheckProgress";
 import { PhotoActions } from "@/src/components/PhotoActions";
@@ -100,7 +100,7 @@ function InspectionPhoto({ uri, scanning }: { uri: string; scanning: boolean }) 
       style={styles.photoFrame}
       testID="report-photo-frame"
     >
-      <Image source={{ uri }} style={styles.hero} contentFit="cover" transition={240} testID="report-photo-preview" />
+      <ExpandableImage uri={uri} style={styles.hero} testID="report-photo-preview" />
       {scanning && !reduceMotion ? <Animated.View pointerEvents="none" style={[styles.scanLine, scanStyle]} /> : null}
     </Animated.View>
   );
