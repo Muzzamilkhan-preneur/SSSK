@@ -14,6 +14,7 @@ import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { ReportBody } from "@/src/components/ReportBody";
 import { ScreenHeader } from "@/src/components/ScreenHeader";
 import { StatusBadge } from "@/src/components/StatusBadge";
+import { useAiWaitMessage } from "@/src/utils/useAiWaitMessage";
 import { fonts, makeStyles, spacing, useTheme } from "@/src/theme";
 import type { LocalFile } from "@/src/utils/upload";
 
@@ -22,6 +23,11 @@ const STEPS = [
   { key: "filled", label: "Pothole filled" },
   { key: "level", label: "Surface level with the road" },
 ];
+const REPAIR_WAIT_MESSAGES = [
+  "Comparing your repair photos…",
+  "AI review in progress…",
+  "Taking longer than usual…",
+] as const;
 
 export default function ContractorJob() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -47,6 +53,7 @@ export default function ContractorJob() {
       await refresh();
     },
   });
+  const repairWaitMessage = useAiWaitMessage(proof.isPending, REPAIR_WAIT_MESSAGES);
 
   if (isLoading) {
     return (
@@ -87,7 +94,7 @@ export default function ContractorJob() {
               <Card testID="proof-upload-card">
                 <Kicker icon="camera">Upload repair proof</Kicker>
                 <Text style={styles.help}>Photograph the same spot from a similar angle. AI compares it with the citizen&apos;s photo before the report is marked fixed.</Text>
-                {proof.isPending ? <CheckProgress title="AI repair check" steps={STEPS} pending pendingLabel="AI is comparing the repair photos…" results={null} testID="repair-check" /> : null}
+                {proof.isPending ? <CheckProgress title="AI repair check" steps={STEPS} pending pendingLabel={repairWaitMessage} results={null} testID="repair-check" /> : null}
                 {proof.isError ? <Text style={styles.err} testID="proof-error">{proof.error.message}</Text> : null}
                 {!proof.isPending ? <PhotoActions onPicked={(f) => proof.mutate(f)} cameraTitle={report.status === "rework" ? "Retake Proof" : "Proof Photo"} galleryTitle="From Gallery" /> : null}
               </Card>

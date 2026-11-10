@@ -29,6 +29,7 @@ import { ScreenHeader } from "@/src/components/ScreenHeader";
 import { homeFor, saveSession } from "@/src/session";
 import { fonts, makeStyles, radius, spacing, useTheme, withAlpha } from "@/src/theme";
 import { ensureMediaPermission } from "@/src/utils/permissions";
+import { useAiWaitMessage } from "@/src/utils/useAiWaitMessage";
 import type { SelfieResult, Session } from "@/src/types";
 import type { LocalFile } from "@/src/utils/upload";
 
@@ -37,6 +38,11 @@ const STEPS = [
   { key: "single_person", label: "Only one person detected" },
   { key: "real_capture", label: "Not a photo of a screen or print" },
 ];
+const SELFIE_WAIT_MESSAGES = [
+  "Checking your selfie…",
+  "AI review in progress…",
+  "Taking longer than usual…",
+] as const;
 
 type Phase = "name" | "camera" | "checking" | "result";
 
@@ -133,6 +139,7 @@ export default function Register() {
   const flowIdRef = useRef(0);
   const nameOk = name.trim().length >= 2;
   const blocked = permission && !permission.granted && !permission.canAskAgain;
+  const selfieWaitMessage = useAiWaitMessage(phase === "checking", SELFIE_WAIT_MESSAGES);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
@@ -513,7 +520,7 @@ export default function Register() {
               title={undefined}
               steps={STEPS}
               pending={phase === "checking"}
-              pendingLabel={phase === "checking" ? "Analyzing selfie…" : undefined}
+              pendingLabel={phase === "checking" ? selfieWaitMessage : undefined}
               pendingSteps={false}
               centerPending
               results={resultMap}

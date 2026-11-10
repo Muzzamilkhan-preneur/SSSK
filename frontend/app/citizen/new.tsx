@@ -33,6 +33,7 @@ import { ScreenHeader } from "@/src/components/ScreenHeader";
 import { KARACHI_CENTER } from "@/src/components/status-meta";
 import { useSession } from "@/src/session";
 import { ensureLocationPermission } from "@/src/utils/permissions";
+import { useAiWaitMessage } from "@/src/utils/useAiWaitMessage";
 import { fonts, makeStyles, radius, spacing, useTheme, withAlpha } from "@/src/theme";
 import type { AiAnalysis, NearbyReportMatch } from "@/src/types";
 import type { LocalFile } from "@/src/utils/upload";
@@ -43,10 +44,10 @@ const STEPS = [
   { key: "findings", label: "Generating AI findings" },
 ];
 const INSPECTION_MESSAGES = [
-  "Sending your photo for AI inspection…",
-  "Checking the photo for road damage…",
-  "Preparing the inspection results…",
-];
+  "Checking your photo…",
+  "AI review in progress…",
+  "Taking longer than usual…",
+] as const;
 const SUBMIT_MESSAGES = [
   "Sending your report…",
   "Saving the report and location…",
@@ -131,7 +132,7 @@ export default function NewReport() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [desc, setDesc] = useState("");
   const [submitErr, setSubmitErr] = useState<string | null>(null);
-  const inspectionMessage = useRotatingMessage(analyzing, INSPECTION_MESSAGES);
+  const inspectionMessage = useAiWaitMessage(analyzing, INSPECTION_MESSAGES);
 
   // Live address as the pin moves (debounced).
   useEffect(() => {
