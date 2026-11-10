@@ -535,6 +535,17 @@ SEED_CONTRACTORS = [
         "is_verified": True,
     },
 ]
+
+
+async def ensure_demo_contractors() -> None:
+    for contractor_spec in SEED_CONTRACTORS:
+        contractor_doc = await db.contractors.find_one(
+            {"name": contractor_spec["name"]}
+        )
+        if contractor_doc is None:
+            await db.contractors.insert_one(Contractor(**contractor_spec).to_firestore())
+
+
 SEED_CITIZENS = ["Ahmed Raza", "Sana Qureshi", "Bilal Khan"]
 SEED_REPORTS = [
     {
@@ -1260,6 +1271,7 @@ async def complete_repair(report_id: str, image: UploadFile = File(...)):
 
 @api_router.get("/contractors", response_model=List[Contractor])
 async def list_contractors():
+    await ensure_demo_contractors()
     docs = await db.contractors.find().sort("rating", -1).to_list(100)
     return [Contractor.from_firestore(d) for d in docs]
 
@@ -1313,7 +1325,7 @@ logging.basicConfig(
 async def startup():
     app.state.index_task = asyncio.create_task(ensure_indexes())
     if os.environ.get("DEMO_SEED", "").lower() == "true":
-        app.state.seed_task = asyncio.create_task(seed_demo_data())
+        app.state.seed_task = asyncio.create_task(ensure_demo_contractors())
     else:
         app.state.seed_task = None
 
