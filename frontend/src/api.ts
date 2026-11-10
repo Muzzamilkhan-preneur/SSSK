@@ -1,5 +1,5 @@
 import { uploadForm, type LocalFile } from "@/src/utils/upload";
-import type { AiAnalysis, Contractor, CreateReportResult, DispatchDemoResult, Report, SelfieResult, Stats } from "@/src/types";
+import type { AiAnalysis, Contractor, CreateReportResult, Report, SelfieResult, Stats } from "@/src/types";
 
 const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -116,7 +116,6 @@ export const api = {
 
   stats: () => get<Stats>("/api/stats"),
 
-  runDispatchDemo: () => post<DispatchDemoResult>("/api/mayor/dispatch-demo/run"),
 };
 
 export const qk = {

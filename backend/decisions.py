@@ -105,7 +105,7 @@ def _prompt(questions: list[dict]) -> str:
     )
 
 
-def _request_with_usage(payload: dict, key: str) -> tuple[dict, dict | None]:
+def _request(payload: dict, key: str) -> dict:
     response = None
     for attempt in range(2):
         try:
@@ -142,40 +142,13 @@ def _request_with_usage(payload: dict, key: str) -> tuple[dict, dict | None]:
             code = "AI_REQUEST_ERROR"
         raise DecisionsUnavailable(code)
     try:
-        response_body = response.json()
-        if not isinstance(response_body, dict):
-            raise DecisionsUnavailable("AI_INVALID_RESPONSE")
-        content = response_body["choices"][0]["message"]["content"]
+        content = response.json()["choices"][0]["message"]["content"]
         result = json.loads(content)
     except (ValueError, KeyError, IndexError, TypeError) as exc:
         raise DecisionsUnavailable("AI_INVALID_RESPONSE") from exc
     if not isinstance(result, dict):
         raise DecisionsUnavailable("AI_INVALID_RESPONSE")
-    usage = response_body.get("usage")
-    return result, usage if isinstance(usage, dict) else None
-
-
-def _request(payload: dict, key: str) -> dict:
-    result, _ = _request_with_usage(payload, key)
     return result
-
-
-def complete_json(system_prompt: str, user_content: str) -> tuple[dict, dict | None]:
-    """Request a JSON object and return provider usage when it is available."""
-    key = os.environ.get("OPENAI_API_KEY") or ""
-    if not key:
-        raise DecisionsUnavailable("AI_AUTH_ERROR")
-    return _request_with_usage(
-        {
-            "model": MODEL,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content},
-            ],
-            "response_format": {"type": "json_object"},
-        },
-        key,
-    )
 
 
 def decide(content: list[dict], questions: list[dict]) -> dict[str, dict]:

@@ -89,17 +89,6 @@ dependencies come from `backend/requirements.txt`.
   leave `_id` out of every response.
 - **Config.** `backend/.env` holds Firebase service-account configuration and
   `OPENAI_API_KEY`, loaded with `python-dotenv`.
-- **AI dispatch demo.** The mayor queue links to a 100-report synthetic
-  simulation. `POST /api/mayor/dispatch-demo/run` sends only generated report
-  text to the configured model; it does not read or write Firestore. Expected
-  incident labels are kept out of the model input and used only to score its
-  grouping results. Crew assignments are capacity-checked suggestions using
-  simulated crews, never real contractor assignments. Each run makes one model
-  request and returns provider token usage when available. Repeated requests
-  reuse a five-minute, process-local cache to avoid duplicate model charges.
-  The cache is not access control or a shared quota; keep this endpoint on a
-  trusted test deployment until server-side mayor authentication and shared
-  rate limits are available.
 - **Dates.** Store aware UTC (`datetime.now(timezone.utc)`, never `utcnow()`).
 - **Quick check.** `cd backend && python -c 'import server'` catches
   syntax and import errors without waiting for the supervisor log.
@@ -186,14 +175,6 @@ cd /app && pytest -c backend/pytest.ini tests
 run in parallel; do not pass your own `-n`. Serial is `-n 0`, never
 `-p no:xdist` (it errors, because `addopts` still passes `-n`). Tests hit the
 live uvicorn process on `8001`, the same app the preview shows.
-
-The dispatch simulation tests are self-contained and use no database or model
-API calls:
-
-```bash
-cd backend
-python -m pytest -q tests/test_dispatch_demo_data.py tests/test_dispatch_agent.py tests/test_dispatch_decisions.py
-```
 
 **Frontend (web preview).** The testing subagent drives `http://localhost:3000`
 with Playwright at a phone viewport and writes

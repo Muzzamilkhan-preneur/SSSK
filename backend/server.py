@@ -34,7 +34,6 @@ from decisions import (
     text_part,
     verify_selfie,
 )  # noqa: E402
-from dispatch_agent import run_synthetic_dispatch  # noqa: E402
 
 db = FirestoreDatabase()
 SEED_VERSION = "v3"
@@ -1134,19 +1133,6 @@ async def list_reports(
         .to_list(limit)
     )
     return [Report.from_firestore(d) for d in docs]
-
-
-@api_router.post("/mayor/dispatch-demo/run")
-async def run_dispatch_demo():
-    try:
-        return await run_in_threadpool(run_synthetic_dispatch)
-    except DecisionsUnavailable as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except Exception as exc:
-        logger.exception("synthetic dispatch demo failed")
-        raise HTTPException(
-            status_code=503, detail="DISPATCH_DEMO_UNAVAILABLE"
-        ) from exc
 
 
 @api_router.get("/reports/{report_id}", response_model=Report)

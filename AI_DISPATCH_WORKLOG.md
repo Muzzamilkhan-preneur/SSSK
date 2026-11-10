@@ -100,3 +100,14 @@ Not yet performed when this section was first written; see the completion entry 
 - No local Firestore access was made.
 - The user confirmed the model key is configured in Render. The local key absence is therefore not a blocker for the deployed endpoint.
 - Follow-up, non-billable `GET /docs` health check to the configured Render host also timed out after 20 seconds with no response. This supports a deployment/service responsiveness issue; it does not establish whether the earlier model request completed.
+
+## 2026-11-10 — Dispatch agent removed
+
+The user confirmed that the app without the dispatch agent is the final direction for now and asked to remove the agent.
+
+- Removed the synthetic dispatch screen, mayor queue entry point, API method/types, backend demo route, model JSON helper, synthetic generator, and dispatch-only tests.
+- Removed dispatch-specific README instructions.
+- Preserved the existing report review and individual contractor assignment workflow.
+- Preserved this work log as a record of the implementation, deployment attempt, and removal.
+- Did not access or modify Render configuration or production data.
+- Existing unrelated Android/frontend changes remain untouched.
