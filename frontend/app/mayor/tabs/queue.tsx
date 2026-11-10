@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { FlatList, RefreshControl, Text, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { api, qk } from "@/src/api";
 import { EmptyState } from "@/src/components/EmptyState";
@@ -61,6 +62,19 @@ export default function MayorQueue() {
               ))}
             </View>
             <FilterChipRowInteractive options={FILTERS} value={filter} onChange={setFilter} />
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push("/mayor/dispatch-demo")}
+              style={({ pressed }) => [styles.demoLink, pressed && styles.demoLinkPressed]}
+              testID="mayor-dispatch-demo-link"
+            >
+              <Ionicons name="git-network" size={18} color={colors.brandPrimary} />
+              <View style={styles.demoLinkCopy}>
+                <Text style={styles.demoLinkTitle}>Try AI dispatch demo</Text>
+                <Text style={styles.demoLinkSubtitle}>100 synthetic reports · no live reports changed</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+            </Pressable>
           </View>
         }
       />
@@ -96,4 +110,9 @@ const useStyles = makeStyles((colors) => ({
   tile: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingVertical: spacing.md, paddingHorizontal: spacing.md, gap: 2 },
   tileValue: { fontFamily: fonts.display, fontSize: 24, color: colors.onSurface },
   tileLabel: { fontFamily: fonts.medium, fontSize: 11.5, color: colors.muted },
+  demoLink: { flexDirection: "row", alignItems: "center", gap: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
+  demoLinkPressed: { backgroundColor: colors.surfaceSecondary },
+  demoLinkCopy: { flex: 1, gap: 2 },
+  demoLinkTitle: { fontFamily: fonts.semibold, fontSize: 13, color: colors.onSurface },
+  demoLinkSubtitle: { fontFamily: fonts.text, fontSize: 11, color: colors.muted },
 }));
