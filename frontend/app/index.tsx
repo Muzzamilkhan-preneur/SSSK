@@ -37,7 +37,13 @@ export default function RolePicker() {
   }, []);
 
   const { data: stats } = useQuery({ queryKey: qk.stats, queryFn: api.stats });
-  const { data: contractors } = useQuery({ queryKey: qk.contractors, queryFn: api.contractors });
+  const {
+    data: contractors,
+    isLoading: contractorsLoading,
+    isFetching: contractorsFetching,
+    isError: contractorsError,
+    refetch: refetchContractors,
+  } = useQuery({ queryKey: qk.contractors, queryFn: api.contractors });
 
   const enter = async (role: Role, name: string, contractorId?: string) => {
     const session = { role, name, contractor_id: contractorId };
@@ -61,6 +67,11 @@ export default function RolePicker() {
     } catch (error) {
       setPickerError(error instanceof Error ? error.message : "Could not open your citizen profile.");
     }
+  };
+
+  const openContractorPicker = () => {
+    setContractorSheet(true);
+    void refetchContractors();
   };
 
   const pending = stats?.by_status?.pending_review ?? 0;
@@ -94,7 +105,7 @@ export default function RolePicker() {
       desc: "See assigned repairs, upload proof of the fix and get it checked by AI.",
       badge: stats ? `${activeJobs} active jobs` : " ",
       testID: "role-card-contractor",
-      onPress: () => setContractorSheet(true),
+      onPress: openContractorPicker,
     },
   ];
 
@@ -133,6 +144,15 @@ export default function RolePicker() {
 
       <BottomSheet visible={contractorSheet} onClose={() => setContractorSheet(false)} title="Choose your crew" testID="contractor-sheet">
         <View style={styles.contractorList}>
+          {contractorsLoading || contractorsFetching ? <Text style={styles.contractorMessage}>Loading crews…</Text> : null}
+          {contractorsError ? (
+            <Pressable onPress={() => { void refetchContractors(); }} accessibilityRole="button">
+              <Text style={styles.contractorError}>Could not load crews. Tap to retry.</Text>
+            </Pressable>
+          ) : null}
+          {!contractorsLoading && !contractorsFetching && !contractorsError && contractors?.length === 0 ? (
+            <Text style={styles.contractorMessage}>No crews are available right now.</Text>
+          ) : null}
           {(contractors ?? []).map((c: Contractor) => (
             <Pressable key={c.id} testID={`contractor-select-${c.id}`} onPress={() => enter("contractor", c.name, c.id)} style={({ pressed }) => [styles.contractorRow, pressed && styles.cardPressed]}>
               <View style={styles.contractorBody}>
@@ -168,13 +188,15 @@ const useStyles = makeStyles((colors) => ({
   cardIcon: { width: 40, height: 40, borderRadius: radius.sm, backgroundColor: colors.brandPrimary, alignItems: "center", justifyContent: "center" },
   cardIconDark: { backgroundColor: colors.brandSecondary },
   cardBody: { flex: 1, gap: 4 },
-  cardHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: spacing.sm },
-  cardTitle: { fontFamily: fonts.display, fontSize: 17, color: colors.onSurface },
-  cardBadge: { fontFamily: fonts.semibold, fontSize: 11, color: colors.onBrandTertiary },
+  cardHead: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", justifyContent: "space-between", gap: spacing.sm },
+  cardTitle: { flexShrink: 1, fontFamily: fonts.display, fontSize: 17, color: colors.onSurface },
+  cardBadge: { flexShrink: 1, fontFamily: fonts.semibold, fontSize: 11, color: colors.onBrandTertiary, textAlign: "right" },
   cardDesc: { fontFamily: fonts.text, fontSize: 13, lineHeight: 18, color: colors.onSurfaceTertiary },
   footerText: { fontFamily: fonts.medium, fontSize: 11, letterSpacing: 0.6, color: colors.muted, textTransform: "uppercase", textAlign: "center" },
   pickerError: { fontFamily: fonts.medium, fontSize: 13, color: colors.error },
   contractorList: { gap: spacing.sm },
+  contractorMessage: { fontFamily: fonts.text, fontSize: 14, color: colors.onSurfaceTertiary, paddingVertical: spacing.sm },
+  contractorError: { fontFamily: fonts.semibold, fontSize: 14, color: colors.error, paddingVertical: spacing.sm },
   contractorRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.lg, backgroundColor: colors.surface },
   contractorBody: { flex: 1, gap: 2 },
   contractorHeading: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.sm },
