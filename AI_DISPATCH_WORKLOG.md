@@ -90,3 +90,11 @@ Not yet performed when this section was first written; see the completion entry 
 - Pushed `main` to `origin/main` successfully.
 - Only the 14 dispatch implementation, test, UI, documentation, and work-log files were included.
 - Unrelated Android/frontend build changes remain unstaged and uncommitted.
+
+## 2026-11-10 — Live synthetic demo attempt
+
+- The local backend had no `OPENAI_API_KEY`; the direct local attempt stopped before sending a model request.
+- Found the frontend's configured public backend URL and sent one `POST /api/mayor/dispatch-demo/run` request, which uses the deployment's existing server-side key and synthetic reports only.
+- The HTTP request produced no response after an extended wait and was stopped. It is unknown whether the deployed server completed the run; therefore token usage, result quality, and charge are unknown.
+- Did not retry, to avoid accidentally creating a duplicate billable model request.
+- No local Firestore access was made.
