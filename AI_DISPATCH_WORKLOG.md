@@ -98,3 +98,5 @@ Not yet performed when this section was first written; see the completion entry 
 - The HTTP request produced no response after an extended wait and was stopped. It is unknown whether the deployed server completed the run; therefore token usage, result quality, and charge are unknown.
 - Did not retry, to avoid accidentally creating a duplicate billable model request.
 - No local Firestore access was made.
+- The user confirmed the model key is configured in Render. The local key absence is therefore not a blocker for the deployed endpoint.
+- Follow-up, non-billable `GET /docs` health check to the configured Render host also timed out after 20 seconds with no response. This supports a deployment/service responsiveness issue; it does not establish whether the earlier model request completed.
